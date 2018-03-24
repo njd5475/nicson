@@ -1,0 +1,6 @@
+{
+	"message": "Hello World!",
+	"nested" : { "type" : "my \"Obj\" last"},
+	"someIntArray": [1,2,3,4,5],
+	"someStrArray": ["read","write","math"]
+}
