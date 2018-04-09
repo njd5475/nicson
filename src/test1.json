@@ -1,0 +1,10 @@
+     
+     
+     {
+	"message": "Hello World!",
+	"nested" :    { "type" : "my \"Obj\" last"},
+	"someIntArray": [1,2,3,4,5],
+	"someStrArray": ["read","write","math"],
+	"someFloat": "180.01234",
+	"someFloatArray": [1.023, 2.34  ,  3.012,	405.123, 0.123E+10]
+}

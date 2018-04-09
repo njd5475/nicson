@@ -22,8 +22,13 @@ int main(int count, const char**argv) {
 	printf("FNV Hash: %d\n", fnvstr("Hello"));
 	JObject *obj = jsonParse(argv[1]);
 
-	jsonAddKey(obj, "message", jsonStringValue("Success."));
-	jsonAddKey(obj, "status", jsonIntValue(200));
+	if(!obj) {
+	  jsonPrintError();
+	  exit(1);
+	}
+	puts("Adding keys...");
+	jsonAddVal(obj, "message", jsonStringValue("Success."));
+	jsonAddVal(obj, "status", jsonIntValue(200));
 
 	printf("Object key size now: %d\n", obj->size);
 

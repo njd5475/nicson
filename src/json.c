@@ -1,148 +1,11 @@
-#include "json.h"
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define OTHER         1
-#define OPEN_BRACE    2
-#define CLOSE_BRACE   3
-#define DOUBLE_QUOTE  4
-#define COLON         5
-#define OPEN_BRACKET  6
-#define CLOSE_BRACKET 7
-#define SINGLE_QUOTE  8
-#define BACK_SLASH    9
-#define COMMA        10
+#include "json.h"
 
-typedef unsigned short TokType;
-typedef struct Tok {
-  FILE *file;
-  struct Tok* _tok;
-  int seek;
-  int count;
-  TokType type;
-  struct Tok *previous;
-} Tok;
-
-TokType tokType(const char c);
-Tok *next(Tok *last);
-
-Tok *first(const char *filename) {
-  Tok *tok = malloc(sizeof(Tok));
-  tok->_tok = 0;
-  tok->file = fopen(filename, "r");
-  tok->seek = 0;
-  tok->count = 1;
-  char ch;
-  fread(&ch, 1, 1, tok->file);
-  tok->type = tokType(ch);
-  tok->previous = 0;
-  return tok;
-}
-
-Tok *next(Tok *last) {
-  if (last) {
-    if (feof(last->file)) {
-      return 0;
-    }
-    fseek(last->file, last->seek + last->count, 0);
-    char buf;
-    fread(&buf, 1, 1, last->file);
-
-    if (last->type == tokType(buf) && last->type == OTHER) {
-      last->count++;
-      return last;
-    } else {
-      Tok *next = malloc(sizeof(Tok));
-      next->file = last->file;
-      next->seek = last->seek + last->count;
-      next->count = 1;
-      next->type = tokType(buf);
-      next->previous = last;
-      return next;
-    }
-  }
-  return 0;
-}
-
-TokType tokType(const char c) {
-  if (c == '{') {
-    return OPEN_BRACE;
-  } else if (c == '}') {
-    return CLOSE_BRACE;
-  } else if (c == '"') {
-    return DOUBLE_QUOTE;
-  } else if (c == '\'') {
-    return SINGLE_QUOTE;
-  } else if (c == ':') {
-    return COLON;
-  } else if (c == '\\') {
-    return BACK_SLASH;
-  } else if (c == '[') {
-    return OPEN_BRACKET;
-  } else if (c == ']') {
-    return CLOSE_BRACKET;
-  } else if (c == ',') {
-    return COMMA;
-  }
-  return OTHER;
-}
-
-const char *strTokType(Tok *tok) {
-  if (tok) {
-    if (tok->type == OPEN_BRACE) {
-      return "Open Brace";
-    } else if (tok->type == CLOSE_BRACE) {
-      return "Close Brace";
-    } else if (tok->type == DOUBLE_QUOTE) {
-      return "Double Quote";
-    } else if (tok->type == SINGLE_QUOTE) {
-      return "Single Quote";
-    } else if (tok->type == COLON) {
-      return "Colon";
-    } else if (tok->type == BACK_SLASH) {
-      return "Back Slash";
-    } else if (tok->type == OPEN_BRACKET) {
-      return "Open Bracket";
-    } else if (tok->type == CLOSE_BRACKET) {
-      return "Close Bracket";
-    } else if (tok->type == COMMA) {
-      return "Comma";
-    } else {
-      return "Other";
-    }
-  }
-  return 0;
-}
-
-struct StackItem {
-  struct StackItem *next;
-  JObject *obj;
-};
-typedef struct StackItem StackItem;
-
-StackItem **_object(StackItem **stack, JObject *obj, Tok *startAt) {
-  return 0;
-}
-
-unsigned int error = 0;
-_Bool parserError() {
-  return !error;
-}
-
-JObject *jsonParse(const char *filename) {
-  Tok *cur = first(filename);
-
-  JObject *obj = jsonNewObject();
-  StackItem **stack = malloc(sizeof(StackItem));
-  while (!parserError()) {
-    stack = _object(stack, obj, cur);
-  }
-
-  return obj;
-}
-
-JObject *jsonAddKey(JObject *obj, const char *name, JValue *value) {
+JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   if (!obj) {
     obj = jsonNewObject();
   }
@@ -175,6 +38,22 @@ JObject *jsonAddKey(JObject *obj, const char *name, JValue *value) {
   return obj;
 }
 
+JObject* jsonAddObj(JObject *obj, const char *name, JObject *value) {
+  return jsonAddVal(obj, name, jsonObjectValue(value));
+}
+
+JObject* jsonAddInt(JObject *obj, const char *name, const int value) {
+  return jsonAddVal(obj, name, jsonIntValue(value));
+}
+
+JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
+  return jsonAddVal(obj, name, jsonUIntValue(value));
+}
+
+JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
+  return jsonAddVal(obj, name, jsonStringValue(value));
+}
+
 JValue* jsonGet(const JObject *obj, const char* key) {
   int keyhash = fnvstr(key);
   int index = keyhash % obj->_arraySize;
@@ -185,30 +64,12 @@ JValue* jsonGet(const JObject *obj, const char* key) {
     index = (++keyhash) % obj->_arraySize;
   }
 
-  if(obj->entries[index]) {
+  if (obj->entries[index]) {
     return obj->entries[index]->value;
   }
 
   printf("Did not find key %s\n", key);
   return 0;
-}
-
-JValue* jsonStringValue(const char *name) {
-  JValue *val = malloc(sizeof(JValue));
-  val->value_type = VAL_STRING;
-  val->value = strdup(name);
-  val->size = strlen(val->value) + 1;
-  return val;
-}
-
-JValue* jsonIntValue(const int value) {
-  JValue *val = malloc(sizeof(JValue));
-  val->value_type = VAL_INT;
-  int *ival = malloc(sizeof(value));
-  memcpy(ival, &value, sizeof(value));
-  val->value = ival;
-  val->size = sizeof(value);
-  return val;
 }
 
 char *nextKey(const char *keys, int *last) {
@@ -236,7 +97,7 @@ char *nextKey(const char *keys, int *last) {
 
 char *allButLast(const char *keys) {
   int len = strlen(keys);
-  char *last = keys + len;
+  const char *last = keys + len;
   while (*last != '.' && last >= keys) {
     --last;
   }
@@ -249,18 +110,72 @@ char *allButLast(const char *keys) {
   return newkeys;
 }
 
+JValue* jsonStringValue(const char *name) {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_STRING;
+  val->value = strdup(name);
+  val->size = strlen(val->value) + 1;
+  return val;
+}
+
+JValue* jsonIntValue(const int value) {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_INT;
+  int *ival = malloc(sizeof(value));
+  memcpy(ival, &value, sizeof(value));
+  val->value = ival;
+  val->size = sizeof(value);
+  return val;
+}
+
 JValue* jsonUIntValue(const unsigned int value) {
-  return 0;
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_INT;
+  val->value = malloc(sizeof(value));
+  memcpy(val->value, &value, sizeof(value));
+  val->size = sizeof(value);
+  return val;
+}
+
+JValue* jsonFloatValue(const float value) {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_FLOAT;
+  val->value = malloc(sizeof(value));
+  memcpy(val->value, &value, sizeof(value));
+  val->size = sizeof(value);
+  return val;
+}
+
+JValue* jsonDoubleValue(const double value) {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_DOUBLE;
+  val->value = malloc(sizeof(value));
+  memcpy(val->value, &value, sizeof(value));
+  val->size = sizeof(value);
+  return val;
 }
 
 JValue* jsonObjectValue(JObject *obj) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_OBJ;
-  val->value = obj->_arraySize * sizeof(JEntry*);
+  val->value = (void*)(obj);
+  val->size = sizeof(obj);
   return val;
 }
 
 JValue* jsonStringArrayValue(const char **strings) {
+  return 0;
+}
+
+JValue* jsonIntArrayValue(int **vals) {
+  return 0;
+}
+
+JValue* jsonFloatArrayValue(float **vals) {
+  return 0;
+}
+
+JValue* jsonDoubleArrayValue(double **vals) {
   return 0;
 }
 
@@ -269,27 +184,47 @@ JObject *jsonNewObject() {
   obj->_arraySize = 100;
   obj->size = 0;
   obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
+  memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
   return obj;
 }
 
 int jsonInt(const JObject *obj, const char* keys) {
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_INT) {
+    return * ((int*)val->value);
+  }
   return -1;
 }
 
 unsigned int jsonUInt(const JObject *obj, const char* keys) {
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_UINT) {
+    return * ((unsigned int*)val->value);
+  }
   return -1;
 }
 
 float jsonFloat(const JObject *obj, const char* keys) {
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_FLOAT) {
+    return * ((float*)val->value);
+  }
   return -1.0f;
 }
 
 double jsonDouble(const JObject *obj, const char* keys) {
-  return -1.0f;
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_INT) {
+    return * ((double*)val->value);
+  }
+  return -1.0;
 }
 
 char* jsonString(const JObject *obj, const char* keys) {
-
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_STRING) {
+    return val->value;
+  }
   return NULL;
 }
 
@@ -297,19 +232,19 @@ char jsonBool(const JObject* obj, const char* keys) {
   return 0;
 }
 
-int* jsonArray(const JObject* obj, const char* keys) {
+JValue** jsonArray(const JObject* obj, const char* keys) {
   return NULL;
 }
 
-int* jsonIntArray(const JObject* obj, const char* keys) {
+int** jsonIntArray(const JObject* obj, const char* keys) {
   return NULL;
 }
 
-float* jsonFoatArray(const JObject* obj, const char* keys) {
+float** jsonFoatArray(const JObject* obj, const char* keys) {
   return NULL;
 }
 
-double* jsonDoubleArray(const JObject* obj, const char* keys) {
+double** jsonDoubleArray(const JObject* obj, const char* keys) {
   return NULL;
 }
 
@@ -318,18 +253,32 @@ char** jsonStringArray(const JObject* obj, const char* keys) {
 }
 
 JObject* jsonObject(const JObject* obj, const char* keys) {
+  if(obj == 0) {
+    return 0;
+  }
+
   int index = 0;
   char *key = nextKey(keys, &index);
-  while (index > -1 && obj != 0) {
+  JValue *jval = jsonGet(obj, key);
+  if(jval->value_type != VAL_OBJ) {
+    return 0;
+  }
+
+  JObject *found = (JObject*)jval->value;
+  while (index > -1 && found != 0) {
+    key = nextKey(keys, &index);
     printf("Looking for key %s\n", key);
-    JValue *jval = jsonGet(obj, key);
+    jval = jsonGet(found, key);
     if (jval && jval->value_type == VAL_OBJ) {
-      obj = (JObject*) jval->value;
+      found = (JObject*) jval->value;
     } else {
-      printf("Err: Object did not contains a next object %s\n", key);
+      if(jval) {
+        printf("Err: Key %s was the wrong type.\n", key);
+      }else{
+        printf("Err: Object did not contains a next object %s\n", key);
+      }
       return 0;
     }
-    char *key = nextKey(keys, &index);
   }
-  return obj;
+  return found;
 }
