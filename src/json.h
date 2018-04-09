@@ -10,7 +10,7 @@
 #define VAL_DOUBLE        5
 #define VAL_BOOL          6
 #define VAL_OBJ           7
-#define VAL_STR_ARRAY     8
+#define VAL_STRING_ARRAY  8
 #define VAL_INT_ARRAY     9
 #define VAL_FLOAT_ARRAY   10
 #define VAL_DOUBLE_ARRAY  11

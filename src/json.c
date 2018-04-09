@@ -75,14 +75,15 @@ JValue* jsonGet(const JObject *obj, const char* key) {
 char *nextKey(const char *keys, int *last) {
   int start = *last;
   int begin = start;
-  for (; keys[start] != '.' && keys[start] != '\0'; ++start)
-    ;
+  for (; keys[start] != '.' && keys[start]; ++start);
+  
   int size = start - begin;
   if (size <= 0) {
     *last = -1;
     return 0;
   }
-  char *newkey = malloc(size);
+  char *newkey = malloc(size+1);
+  memset(newkey, 0, size+1);
   int another = begin;
   for (; begin <= start; ++begin) {
     newkey[start - begin] = keys[another + (start - begin)];

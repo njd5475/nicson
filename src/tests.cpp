@@ -10,23 +10,23 @@ FILE *inlineJson(const char *jstr) {
     return fmemopen(buf, (sizeof(char)*strlen(buf)+1), "r");
 }
 
-TEST(JsonParserWorks, shouldGetString) {
-  Tok *start = 0;
-  Tok *end = 0;
-  const char*str = getStrBetween(start, end);
-  EXPECT_TRUE(str != 0);
-}
-
 TEST(JsonParserWorks, shouldTokenizeIntoGroups) {
   Tok *head = first("./src/test1.json");
   Tok *cur = head;
   Tok *last = 0;
   while(cur) {
     cur = next(cur);
-    if(last && last != cur) {
-      printTok(last);
+    if(cur) {
+      last = cur;
     }
-    last = cur;
+  }
+  
+  //now delete
+  fclose(last->file);
+  while(last != NULL) {
+    Tok *toDel = cur;
+    last = last->previous;
+    free(toDel);
   }
 }
 
@@ -59,7 +59,11 @@ TEST (JsonParserWorks, shouldParseIntegerValues) {
   FILE* file = inlineJson("{\"val\":200860}");
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
-  EXPECT_EQ(200860, jsonInt((JObject*)val->value, "val"));
+  JObject* obj = (JObject*)val->value;
+  JValue* vals = jsonGet(obj, "val");
+  ASSERT_TRUE(vals != NULL);
+  EXPECT_EQ(VAL_INT, vals->value_type);
+  EXPECT_EQ(200860, jsonInt(obj, "val"));
 }
 
 TEST (JsonParserWorks, shouldParseFloatValues) {
@@ -92,6 +96,7 @@ TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_STRING);
   EXPECT_EQ(val->size, 8);
+  free(val);
 }
 
 TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {

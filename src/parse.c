@@ -16,6 +16,12 @@
 
 #include "json.h"
 
+//safety
+#ifdef TRACK_ALLOCS
+#define malloc(p) \
+  malloc((printf("Allocating %.0f bytes, in %s at %d\n", (float)p, __FILE__, __LINE__) * 0)+ p)
+#endif
+
 #define NOT_IMPLEMENTED(p)   jsonSetParserError(p, 42, "parseArray: Not Implemented");
 #define UNEXPECTED_TOKEN(p)  jsonSetParserError(p, 43, "Unexpected Token");
 #define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character");
@@ -63,7 +69,7 @@ Tok *next(Tok *last) {
       return 0;
     }
     fseek(last->file, last->seek + last->count, SEEK_SET);
-    char buf;
+    char buf = '\0';
     fread(&buf, 1, 1, last->file);
 
     if (last->type == tokType(buf) && last->type == OTHER) {
@@ -435,62 +441,80 @@ JValue *jsonParseArray(Parser *p) {
     JValue *val;
   } ArrayVal;
 
+#define ARRAY_TYPE(t) \
+   (t == VAL_INT ? VAL_INT_ARRAY : \
+     (t == VAL_FLOAT ? VAL_FLOAT_ARRAY : \
+       (t == VAL_DOUBLE ? VAL_DOUBLE_ARRAY : \
+         (t == VAL_STRING ? VAL_STRING_ARRAY : VAL_MIXED_ARRAY))))
+
   if (p->cur->type != OPEN_BRACKET) {
     UNEXPECTED_TOKEN(p);
     return 0;
   }
 
   ArrayVal *curVal = malloc(sizeof(ArrayVal));
-  ArrayVal *head = curVal;
+  ArrayVal *head = 0;
+  head = curVal;
 
-  int count = 0;
+  int count = 1;
   short singleValueType = -1;
   do {
     consume(p); //first time consume open bracket then commas
     consumeWhitespace(p);
     curVal->val = jsonParseValue(p);
-    
+
     // could make this a ternary but I won't
-    if(singleValueType == -1) {
-      singleValueType = curVal->val->value_type;
+    if (singleValueType == -1) {
+      singleValueType = ARRAY_TYPE(curVal->val->value_type);
     }
-    if(singleValueType != curVal->val->value_type) {
+    if (singleValueType != ARRAY_TYPE(curVal->val->value_type)) {
       // as soon as it's not the same it's mixed
-      // TODO: could be amended to promote integers to floats and doubles
-      singleValueType = VAL_MIXED_ARRAY; 
+      singleValueType = VAL_MIXED_ARRAY;
     }
-    singleValueType = curVal->val->value_type;
-    
+    singleValueType = ARRAY_TYPE(curVal->val->value_type);
+
     if (!curVal || p->error) {
+      //need to cleanup ArrayVal's
       return 0;
     }
 
     ArrayVal *nextVal = malloc(sizeof(ArrayVal));
+    nextVal->val = 0;
+    nextVal->entry.next = 0;
     curVal->entry.next = nextVal;
     curVal = nextVal;
     ++count;
     consumeWhitespace(p);
-  }while (p->cur->type == COMMA);
+  } while (p->cur->type == COMMA);
 
-  if(p->cur->type != CLOSE_BRACKET) {
+  if (p->cur->type != CLOSE_BRACKET) {
     UNEXPECTED_TOKEN(p);
     return 0;
   }
   consume(p);
 
   //Now we know how many we have lets allocate
-  JValue *arrayVal = malloc(sizeof(JValue*));
-  JValue** arry = arrayVal->value = malloc(sizeof(JValue*) * count);
+  JValue *arrayVal = malloc(sizeof(JValue));
+  JValue** arry = malloc(sizeof(*arry) * count);
+  arrayVal->size = sizeof(*arry) * count;
+  arrayVal->value = &arry;
+  curVal = 0;
   curVal = head;
   int index = 0;
+  ArrayVal *deletable = curVal;
   while (curVal != 0) {
-    arry[index] = curVal->val;
+    if (curVal->val) {
+      arry[index] = curVal->val;
+    } else {
+      printf("There is something wrong!");
+    }
 
-    ArrayVal *deletable = curVal;
+    deletable = curVal;
     curVal = curVal->entry.next;
     free(deletable);
     ++index;
   }
+  free(curVal);
   arrayVal->value_type = singleValueType;
 
   return arrayVal;
@@ -528,6 +552,7 @@ JValue *jsonParseF(FILE *file) {
     if (val && !p.error) {
       jsonRewind(&p, first);
       free(first);
+      fclose(file);
       return val;
     } else {
       jsonPrintError(&p);
@@ -535,6 +560,8 @@ JValue *jsonParseF(FILE *file) {
   }
 
   jsonRewind(&p, first);
+  free(first);
+  fclose(file);
   BAD_CHARACTER(&p)
   return 0;
 }
