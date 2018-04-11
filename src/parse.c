@@ -169,44 +169,38 @@ void printTok(Tok *tok) {
 int isTerm(Parser *p, const char *cterm) {
   if (p->cur->type == OTHER) {
     Tok *start = p->cur;
-    Tok *last;
     int cterm_len = strlen(cterm);
-    int cur_len = 0;
-    while (p->cur->type == OTHER && cur_len <= cterm_len) {
-      last = p->cur;
-      cur_len += p->cur->count;
-      consume(p);
-    }
-    const char *term = getStrBetween(start, last);
+    if (cterm_len == p->cur->count) {
+      char term[p->cur->count+1];
+      memset(&term, 0, p->cur->count+1);
+      fseek(p->cur->file, p->cur->seek, SEEK_SET);
+      fread(&term, p->cur->count, 1, p->cur->file);
 
-    jsonRewind(p, start);
+      jsonRewind(p, start);
 
-    if (strcmp(cterm, term) == 0) {
-      return 1;
+      if (strcmp(cterm, term) == 0) {
+        return 1;
+      }
     }
   }
 
   return 0;
 }
 
-const char* jsonParseQuotedString(Parser* parser, char quote) {
-  Tok *tok = parser->cur;
-  Tok *cur = tok = next(tok);
+const char* jsonParseQuotedString(Parser* p, char quote) {
+  Tok *start = p->cur;
   TokType quoteType = tokType(quote);
-  while (cur->type != quoteType) {
-    if (cur->type == BACK_SLASH) {
-      cur = next(cur); // consume back slash and next character
-      cur = next(cur);
+  consume(p);
+  while (p->cur->type != quoteType) {
+    if (p->cur->type == BACK_SLASH) {
+      consume(p);
+      consume(p);
     }
-    cur = next(cur);
+    consume(p);
   }
-  Tok *last = cur;
-  cur = cur->previous; //before quote
+  const char* str = getStrBetween(start, p->cur /* quote char */);
 
-  const char* str = getStrBetween(tok, cur);
-
-  parser->cur = next(last); // advance the token
-
+  consume(p);
   return str;
 }
 
@@ -398,7 +392,7 @@ JValue *jsonParseNumber(Parser *p) {
       }
     }
 
-    //determine if we have a integer, float, or double
+//determine if we have a integer, float, or double
     if (value <= FLT_MAX) {
       //we have a float, check for decimals
       if (value <= INT_MAX && !(value - floor(value) > 0)) {
@@ -409,7 +403,7 @@ JValue *jsonParseNumber(Parser *p) {
       return jsonFloatValue((float) value);
     }
 
-    //otherwise we have a double
+//otherwise we have a double
     return jsonDoubleValue(value);
   }
 
@@ -463,6 +457,11 @@ JValue *jsonParseArray(Parser *p) {
     consumeWhitespace(p);
     curVal->val = jsonParseValue(p);
 
+    if (!curVal || p->error) {
+      //need to cleanup ArrayVal's
+      return 0;
+    }
+
     // could make this a ternary but I won't
     if (singleValueType == -1) {
       singleValueType = ARRAY_TYPE(curVal->val->value_type);
@@ -472,11 +471,6 @@ JValue *jsonParseArray(Parser *p) {
       singleValueType = VAL_MIXED_ARRAY;
     }
     singleValueType = ARRAY_TYPE(curVal->val->value_type);
-
-    if (!curVal || p->error) {
-      //need to cleanup ArrayVal's
-      return 0;
-    }
 
     ArrayVal *nextVal = malloc(sizeof(ArrayVal));
     nextVal->val = 0;
@@ -493,7 +487,7 @@ JValue *jsonParseArray(Parser *p) {
   }
   consume(p);
 
-  //Now we know how many we have lets allocate
+//Now we know how many we have lets allocate
   JValue *arrayVal = malloc(sizeof(JValue));
   JValue** arry = malloc(sizeof(*arry) * count);
   arrayVal->size = sizeof(*arry) * count;
@@ -514,7 +508,6 @@ JValue *jsonParseArray(Parser *p) {
     free(deletable);
     ++index;
   }
-  free(curVal);
   arrayVal->value_type = singleValueType;
 
   return arrayVal;
@@ -578,7 +571,7 @@ char getCharAt(Tok *tok, int index) {
 }
 
 const char *getnStrBetween(Tok *start, Tok *end, int count) {
-  if (end < start) {
+  if (end == start) {
     return 0;
   }
 
@@ -586,23 +579,29 @@ const char *getnStrBetween(Tok *start, Tok *end, int count) {
   char *buf = (char*) malloc(size);
   memset(buf, 0, size);
   char *pos = buf + count;
-  for (; end >= start && end; end = end->previous) {
+  end = end->previous;
+  while (start != end) {
     fseek(end->file, end->seek, SEEK_SET);
     pos -= end->count;
     fread(pos, end->count, 1, end->file);
+    end = end->previous;
   }
 
   return buf;
 }
 
 const char *getStrBetween(Tok *start, Tok *end) {
-  if (end < start) {
+  if (start == end) {
     return 0;
   }
+
   int totalCount = 0;
   Tok *cur = end;
-  for (; cur >= start && cur; cur = cur->previous) {
+  cur = cur->previous;
+  while (start != cur) {
     totalCount += cur->count;
+    cur = cur->previous;
   }
+
   return getnStrBetween(start, end, totalCount);
 }
