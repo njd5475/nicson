@@ -283,3 +283,7 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
   }
   return found;
 }
+
+void jsonFree(JObject *obj) {
+  
+}

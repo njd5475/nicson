@@ -491,7 +491,7 @@ JValue *jsonParseArray(Parser *p) {
   JValue *arrayVal = malloc(sizeof(JValue));
   JValue** arry = malloc(sizeof(*arry) * count);
   arrayVal->size = sizeof(*arry) * count;
-  arrayVal->value = &arry;
+  arrayVal->value = arry;
   curVal = 0;
   curVal = head;
   int index = 0;
@@ -499,8 +499,6 @@ JValue *jsonParseArray(Parser *p) {
   while (curVal != 0) {
     if (curVal->val) {
       arry[index] = curVal->val;
-    } else {
-      printf("There is something wrong!");
     }
 
     deletable = curVal;
@@ -543,6 +541,7 @@ JValue *jsonParseF(FILE *file) {
     }
 
     if (val && !p.error) {
+      free(p.error_message);
       jsonRewind(&p, first);
       free(first);
       fclose(file);

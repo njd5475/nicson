@@ -92,4 +92,6 @@ double**      jsonDoubleArray(const JObject *obj, const char* keys);
 char**        jsonStringArray(const JObject *obj, const char* keys);
 JObject*      jsonObject(const JObject *obj, const char* keys);
 
+void          jsonFree(JObject *obj);
+
 #endif

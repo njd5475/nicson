@@ -89,6 +89,8 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_INT_ARRAY, val->value_type);
+  free(val->value);
+  free(val);
 }
 
 TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
@@ -96,6 +98,7 @@ TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_STRING);
   EXPECT_EQ(val->size, 8);
+  free(val->value);
   free(val);
 }
 
@@ -105,6 +108,7 @@ TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {
 
     jsonAddString(obj, "status", "Success");
     EXPECT_EQ(obj->size, 1);
+    jsonFree(obj);
 }
 
 TEST(JsonObjectManipulation, shouldGetKeyValue) {
