@@ -93,6 +93,32 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
   free(val);
 }
 
+TEST (JsonParserWorks, shouldParseArrayOfFloats) {
+  FILE *file = inlineJson("[1.1, 2.123, 3.345, 4.54, 5.43]");
+  JValue *val = jsonParseF(file);
+  ASSERT_TRUE(val != NULL);
+  EXPECT_EQ(VAL_FLOAT_ARRAY, val->value_type);
+  free(val->value);
+  free(val);
+}
+
+TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
+  FILE *file = inlineJson("[1.3E23, 2.4E24]");
+  JValue *val = jsonParseF(file);
+  ASSERT_TRUE(val != NULL);
+  EXPECT_EQ(VAL_DOUBLE_ARRAY, val->value_type);
+  free(val->value);
+  free(val);
+}
+
+TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
+  FILE *file = inlineJson("{\"obj\":{\"obj\":{\"status\":\"I am nested\"}}}");
+  JValue *val = jsonParseF(file);
+  ASSERT_TRUE(val != NULL);
+  EXPECT_EQ(VAL_OBJ, val->value_type);
+  EXPECT_STREQ("I am nested", jsonString((JObject*)val->value,"obj.obj.status"));
+}
+
 TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
   JValue *val = jsonStringValue("Success");
   EXPECT_TRUE(val != NULL);

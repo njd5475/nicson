@@ -96,13 +96,29 @@ char *nextKey(const char *keys, int *last) {
   return newkey;
 }
 
+char *last(const char *keys) {
+  int len = strlen(keys);
+  const char *lastDot = keys + len;
+  char* end = lastDot;
+  while (*lastDot != '.' && lastDot > keys) {
+    --lastDot;
+  }
+  if (keys == lastDot) {
+    return 0;
+  }
+
+  char *newkeys = malloc(end - lastDot);
+  strncpy(newkeys, keys, end - lastDot);
+  return newkeys;
+}
+
 char *allButLast(const char *keys) {
   int len = strlen(keys);
   const char *last = keys + len;
   while (*last != '.' && last >= keys) {
     --last;
   }
-  if (keys == last) {
+  if (keys <= last) {
     return 0;
   }
 
@@ -222,7 +238,9 @@ double jsonDouble(const JObject *obj, const char* keys) {
 }
 
 char* jsonString(const JObject *obj, const char* keys) {
-  JValue *val = jsonGet(obj, keys);
+  const char *firstKeys = allButLast(keys);
+  JObject *parentObj = jsonObject(obj, firstKeys);
+  JValue *val = jsonGet(parentObj, last(keys));
   if(val && val->value_type == VAL_STRING) {
     return val->value;
   }
