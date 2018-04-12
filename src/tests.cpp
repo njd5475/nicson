@@ -119,6 +119,7 @@ TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
   EXPECT_STREQ("I am nested", jsonString((JObject*)val->value,"obj.obj.status"));
 }
 
+
 TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
   JValue *val = jsonStringValue("Success");
   EXPECT_TRUE(val != NULL);
