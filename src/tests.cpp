@@ -38,6 +38,7 @@ TEST(JsonParserWorks, shouldEndAtEndOfStream) {
   file = inlineJson("{\"message\":\"hello\"");
   val = jsonParseF(file);
   EXPECT_TRUE(val != NULL);
+  jsonFree(val);
 }
 
 TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
@@ -46,6 +47,7 @@ TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   EXPECT_STREQ(jsonString((JObject*)val->value, "message"), "hello");
+  jsonFree(val);
 }
 
 TEST(JsonParserWorks, shouldParseEmptyObject) {
@@ -53,6 +55,7 @@ TEST(JsonParserWorks, shouldParseEmptyObject) {
   JValue *val = jsonParseF(file);
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_OBJ);
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseIntegerValues) {
@@ -64,6 +67,7 @@ TEST (JsonParserWorks, shouldParseIntegerValues) {
   ASSERT_TRUE(vals != NULL);
   EXPECT_EQ(VAL_INT, vals->value_type);
   EXPECT_EQ(200860, jsonInt(obj, "val"));
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseFloatValues) {
@@ -73,6 +77,7 @@ TEST (JsonParserWorks, shouldParseFloatValues) {
   EXPECT_EQ(VAL_OBJ, val->value_type);
   EXPECT_EQ(VAL_FLOAT, jsonGet((JObject*)val->value, "val")->value_type);
   EXPECT_EQ(0.123f, jsonFloat((JObject*)val->value, "val"));
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
@@ -82,6 +87,7 @@ TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
   EXPECT_EQ(VAL_OBJ, val->value_type);
   EXPECT_EQ(VAL_FLOAT, jsonGet((JObject*)val->value, "val")->value_type);
   EXPECT_EQ(0.123e9f, jsonFloat((JObject*)val->value, "val"));
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
@@ -89,8 +95,7 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_INT_ARRAY, val->value_type);
-  free(val->value);
-  free(val);
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfFloats) {
@@ -98,8 +103,7 @@ TEST (JsonParserWorks, shouldParseArrayOfFloats) {
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_FLOAT_ARRAY, val->value_type);
-  free(val->value);
-  free(val);
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
@@ -107,8 +111,7 @@ TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_DOUBLE_ARRAY, val->value_type);
-  free(val->value);
-  free(val);
+  jsonFree(val);
 }
 
 TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
@@ -117,6 +120,7 @@ TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_OBJ, val->value_type);
   EXPECT_STREQ("I am nested", jsonString((JObject*)val->value,"obj.obj.status"));
+  jsonFree(val);
 }
 
 
@@ -125,8 +129,7 @@ TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_STRING);
   EXPECT_EQ(val->size, 8);
-  free(val->value);
-  free(val);
+  jsonFree(val);
 }
 
 TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {
@@ -135,7 +138,7 @@ TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {
 
     jsonAddString(obj, "status", "Success");
     EXPECT_EQ(obj->size, 1);
-    jsonFree(obj);
+    jsonFree(jsonObjectValue(obj));
 }
 
 TEST(JsonObjectManipulation, shouldGetKeyValue) {
@@ -148,6 +151,7 @@ TEST(JsonObjectManipulation, shouldGetKeyValue) {
   EXPECT_EQ(val->value_type, VAL_STRING);
   EXPECT_EQ(val->size, 8);
   EXPECT_STREQ((const char*)val->value, "Success");
+  jsonFree(val);
 }
 
 TEST(JsonObjectManipulation, shouldGetKeyValueOutOfKeys) {
@@ -161,6 +165,7 @@ TEST(JsonObjectManipulation, shouldGetKeyValueOutOfKeys) {
   EXPECT_EQ(val->value_type, VAL_STRING);
   EXPECT_EQ(val->size, 8);
   EXPECT_STREQ((const char*)val->value, "Success");
+  jsonFree(val);
 }
 
 TEST(JsonObjectManipulation, shouldGetStringOutOfObjectAsStored) {
@@ -176,7 +181,7 @@ TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
   JObject *obj = jsonNewObject();
   EXPECT_EQ(obj->size, 0);
 
-  JObject *nestedOne =jsonNewObject();
+  JObject *nestedOne = jsonNewObject();
   EXPECT_EQ(nestedOne->size, 0);
 
   JObject *nestedTwo = jsonNewObject();
