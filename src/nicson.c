@@ -20,13 +20,16 @@ int main(int count, const char**argv) {
 	}
 	printf("Loading JSON: %s\n", argv[1]);
 	printf("FNV Hash: %d\n", fnvstr("Hello"));
-	JObject *obj = jsonParse(argv[1]);
+	JValue *val = jsonParse(argv[1]);
 
-	if(!obj) {
+	if(!val && val->value_type != VAL_OBJ) {
 	  jsonPrintError();
 	  exit(1);
 	}
+	
+	JObject *obj = (JObject*)val->value;
 	puts("Adding keys...");
+	printf("Message %d, status %d\n", fnvstr("message") % 100, fnvstr("status") % 100);
 	jsonAddVal(obj, "message", jsonStringValue("Success."));
 	jsonAddVal(obj, "status", jsonIntValue(200));
 

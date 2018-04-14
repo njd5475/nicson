@@ -39,6 +39,7 @@ TEST(JsonParserWorks, shouldEndAtEndOfStream) {
   val = jsonParseF(file);
   EXPECT_TRUE(val != NULL);
   jsonFree(val);
+  fclose(file);
 }
 
 TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
@@ -48,6 +49,7 @@ TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
   EXPECT_EQ(val->value_type, VAL_OBJ);
   EXPECT_STREQ(jsonString((JObject*)val->value, "message"), "hello");
   jsonFree(val);
+  fclose(file);
 }
 
 TEST(JsonParserWorks, shouldParseEmptyObject) {
@@ -56,6 +58,7 @@ TEST(JsonParserWorks, shouldParseEmptyObject) {
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseIntegerValues) {
@@ -68,6 +71,7 @@ TEST (JsonParserWorks, shouldParseIntegerValues) {
   EXPECT_EQ(VAL_INT, vals->value_type);
   EXPECT_EQ(200860, jsonInt(obj, "val"));
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseFloatValues) {
@@ -78,6 +82,7 @@ TEST (JsonParserWorks, shouldParseFloatValues) {
   EXPECT_EQ(VAL_FLOAT, jsonGet((JObject*)val->value, "val")->value_type);
   EXPECT_EQ(0.123f, jsonFloat((JObject*)val->value, "val"));
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
@@ -88,6 +93,7 @@ TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
   EXPECT_EQ(VAL_FLOAT, jsonGet((JObject*)val->value, "val")->value_type);
   EXPECT_EQ(0.123e9f, jsonFloat((JObject*)val->value, "val"));
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
@@ -96,6 +102,7 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_INT_ARRAY, val->value_type);
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfFloats) {
@@ -104,6 +111,7 @@ TEST (JsonParserWorks, shouldParseArrayOfFloats) {
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_FLOAT_ARRAY, val->value_type);
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
@@ -112,6 +120,7 @@ TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_DOUBLE_ARRAY, val->value_type);
   jsonFree(val);
+  fclose(file);
 }
 
 TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
@@ -121,6 +130,7 @@ TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
   EXPECT_EQ(VAL_OBJ, val->value_type);
   EXPECT_STREQ("I am nested", jsonString((JObject*)val->value,"obj.obj.status"));
   jsonFree(val);
+  fclose(file);
 }
 
 
@@ -175,6 +185,7 @@ TEST(JsonObjectManipulation, shouldGetStringOutOfObjectAsStored) {
   jsonAddString(obj, "status", "Success");
   const char* out = jsonString(obj, "status");
   EXPECT_STREQ(out, "Success");
+  jsonFree(jsonObjectValue(obj));
 }
 
 TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
@@ -195,5 +206,6 @@ TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
 
   JObject* found = jsonObject(obj, "nestedObject1.nestedObject2.nestedObject3");
   EXPECT_EQ(found, nestedThree);
+  jsonFree(jsonObjectValue(obj));
 }
 

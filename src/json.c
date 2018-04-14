@@ -73,31 +73,45 @@ JValue* jsonGet(const JObject *obj, const char* key) {
 }
 
 char *nextKey(const char *keys, int *last) {
+  if(!keys || !last) {
+    return 0;
+  }
+  
   int start = *last;
   int begin = start;
-  for (; keys[start] != '.' && keys[start]; ++start)
+  for (; keys[start] != '.' && keys[start]; ++start) {
     ;
-
+  }
+  
   int size = start - begin;
   if (size <= 0) {
     *last = -1;
     return 0;
   }
+  
   char *newkey = malloc(size + 1);
   memset(newkey, 0, size + 1);
+  
   int another = begin;
   for (; begin <= start; ++begin) {
     newkey[start - begin] = keys[another + (start - begin)];
   }
+  
   newkey[size] = '\0';
   *last = start + 1;
+  
   if (keys[start] == '\0') {
     *last = -1;
   }
+  
   return newkey;
 }
 
 char *last(const char *keys) {
+  if(!keys) {
+    return 0;
+  }
+  
   int len = strlen(keys);
   const char *lastDot = keys + len;
   const char* end = lastDot;
@@ -109,12 +123,21 @@ char *last(const char *keys) {
   }
 
   ++lastDot;
+  
+  if( (end - lastDot) <= 0) {
+    return 0;
+  }
+  
   char *newkeys = malloc(end - lastDot);
   strncpy(newkeys, lastDot, end - lastDot);
   return newkeys;
 }
 
 char *allButLast(const char *keys) {
+  if(!keys) {
+    return 0;
+  }
+  
   int len = strlen(keys);
   const char *last = keys + len;
   while (*last != '.' && last > keys) {
@@ -125,7 +148,7 @@ char *allButLast(const char *keys) {
     return 0;
   }
 
-  char *newkeys = malloc(last - keys);
+  char *newkeys = malloc((last - keys) + 1);
   strncpy(newkeys, keys, last - keys);
   return newkeys;
 }
@@ -241,15 +264,18 @@ double jsonDouble(const JObject *obj, const char* keys) {
 }
 
 char* jsonString(const JObject *obj, const char* keys) {
-  const char *firstKeys = allButLast(keys);
+  char *firstKeys = allButLast(keys);
   const JObject *parentObj = obj;
 
   if (firstKeys != NULL) {
     parentObj = jsonObject(obj, firstKeys);
+    free(firstKeys);
   }
 
   if (parentObj != NULL) {
-    JValue *val = jsonGet(parentObj, last(keys));
+    char *lastKey = last(keys);
+    JValue *val = jsonGet(parentObj, lastKey);
+    free(lastKey);
     if (val && val->value_type == VAL_STRING) {
       return val->value;
     }
@@ -283,25 +309,26 @@ char** jsonStringArray(const JObject* obj, const char* keys) {
 }
 
 JObject* jsonObject(const JObject* obj, const char* keys) {
-  if (obj == 0) {
+  if (obj == 0 || !keys) {
     return 0;
   }
 
   int index = 0;
   char *key = nextKey(keys, &index);
   JValue *jval = jsonGet(obj, key);
-  if (jval->value_type != VAL_OBJ) {
+  if (!jval || jval->value_type != VAL_OBJ) {
     return 0;
   }
 
   JObject *found = (JObject*) jval->value;
   while (index > -1 && found != 0) {
+    free(key);
     key = nextKey(keys, &index);
     printf("Looking for key %s\n", key);
     jval = jsonGet(found, key);
     if (jval && jval->value_type == VAL_OBJ) {
       found = (JObject*) jval->value;
-    } else {
+    } else if(key) {
       if (jval) {
         printf("Err: Key %s was the wrong type.\n", key);
       } else {
@@ -310,6 +337,7 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
       return 0;
     }
   }
+  free(key);
   return found;
 }
 
@@ -336,8 +364,10 @@ void jsonFree(JValue *val) {
         free(toDel);
       }
     }
-  } else if (vtype == VAL_STRING || vtype == VAL_INT || vtype == VAL_UINT
-      || vtype == VAL_FLOAT || vtype == VAL_DOUBLE) {
-    free(val->value);
-  }
+    free(obj->entries);
+    free(obj);
+  } 
+    
+  free(val->value);
+  free(val);
 }
