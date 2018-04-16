@@ -28,7 +28,6 @@
 typedef unsigned short TokType;
 typedef struct Tok {
   FILE *file;
-  struct Tok* _tok;
   int seek;
   int count;
   int line;

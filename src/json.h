@@ -1,6 +1,7 @@
 #ifndef JSON_H
 #define JSON_H
 
+#include <stdio.h>
 #include "fnv.h"
 
 #define VAL_STRING        1

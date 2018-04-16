@@ -29,6 +29,9 @@
 void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg) {
   p->error = errNo;
   p->error_tok = p->cur;
+  if(p->error_message) {
+    free(p->error_message);
+  }
   p->error_message = strdup(msg);
 }
 
@@ -51,7 +54,6 @@ Tok *first(const char *filename) {
 Tok *ffirst(FILE *file) {
   Tok *tok = (Tok*) malloc(sizeof(Tok));
   tok->file = file;
-  tok->_tok = 0;
   tok->seek = 0;
   tok->count = 1;
   char ch;
@@ -529,6 +531,9 @@ JValue *jsonParse(const char *filename) {
 JValue *jsonParseF(FILE *file) {
   Parser p;
   p.error = 0;
+  if(p.error_message) {
+    free(p.error_message);
+  }
   p.error_message = strdup("Unknown Error");
   Tok *first = p.cur = ffirst(file);
   if (p.cur) {

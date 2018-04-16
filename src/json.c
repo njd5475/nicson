@@ -1,9 +1,8 @@
-#include <sys/types.h>
+#include "json.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "json.h"
 
 JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   if (!obj) {
@@ -128,7 +127,7 @@ char *last(const char *keys) {
     return 0;
   }
   
-  char *newkeys = malloc(end - lastDot);
+  char *newkeys = malloc((end - lastDot) + 1);
   strncpy(newkeys, lastDot, end - lastDot);
   return newkeys;
 }
@@ -264,6 +263,9 @@ double jsonDouble(const JObject *obj, const char* keys) {
 }
 
 char* jsonString(const JObject *obj, const char* keys) {
+  if(keys == NULL) {
+    return NULL;
+  }
   char *firstKeys = allButLast(keys);
   const JObject *parentObj = obj;
 
@@ -274,10 +276,12 @@ char* jsonString(const JObject *obj, const char* keys) {
 
   if (parentObj != NULL) {
     char *lastKey = last(keys);
-    JValue *val = jsonGet(parentObj, lastKey);
-    free(lastKey);
-    if (val && val->value_type == VAL_STRING) {
-      return val->value;
+    if(lastKey != NULL) {
+      JValue *val = jsonGet(parentObj, lastKey);
+      free(lastKey);
+      if (val && val->value_type == VAL_STRING) {
+        return val->value;
+      }
     }
   }
 
@@ -358,14 +362,13 @@ void jsonFree(JValue *val) {
         valToDel = toDel->value;
         vtype = valToDel->value_type;
 
-        jsonFree(valToDel->value);
+        jsonFree((JValue*)valToDel);
 
         free(toDel->name);
         free(toDel);
       }
     }
     free(obj->entries);
-    free(obj);
   } 
     
   free(val->value);

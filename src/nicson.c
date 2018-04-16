@@ -40,5 +40,7 @@ int main(int count, const char**argv) {
 	if(nobj == 0) {
 	  printf("Could not find the obj\n");
 	}
+	
+	jsonFree(val);
 	return EXIT_SUCCESS;
 }
