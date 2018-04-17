@@ -210,6 +210,7 @@ JValue* jsonStringArrayValue(const char **strings) {
 }
 
 JValue* jsonIntArrayValue(int **vals) {
+  
   return 0;
 }
 
@@ -218,6 +219,11 @@ JValue* jsonFloatArrayValue(float **vals) {
 }
 
 JValue* jsonDoubleArrayValue(double **vals) {
+  return 0;
+}
+
+JValue *jsonMixedArrayValue(JValue **values) {
+  
   return 0;
 }
 
@@ -369,7 +375,19 @@ void jsonFree(JValue *val) {
       }
     }
     free(obj->entries);
-  } 
+  } else if(vtype == VAL_MIXED_ARRAY) {
+    JValue **values = val->value;
+    int count = val->size / sizeof(*values);
+    for(int i = 0; i < count; ++i) {
+      jsonFree(values[0]);
+    }
+  } else if(vtype == VAL_STRING_ARRAY) {
+    char **strings = val->value;
+    int count = val->size / sizeof(*strings);
+    for(int i = 0; i < count; ++i) {
+      free(strings[i]);
+    }
+  }
     
   free(val->value);
   free(val);

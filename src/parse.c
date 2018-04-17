@@ -29,7 +29,7 @@
 void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg) {
   p->error = errNo;
   p->error_tok = p->cur;
-  if(p->error_message) {
+  if (p->error_message) {
     free(p->error_message);
   }
   p->error_message = strdup(msg);
@@ -173,8 +173,8 @@ int isTerm(Parser *p, const char *cterm) {
     Tok *start = p->cur;
     int cterm_len = strlen(cterm);
     if (cterm_len == p->cur->count) {
-      char term[p->cur->count+1];
-      memset(&term, 0, p->cur->count+1);
+      char term[p->cur->count + 1];
+      memset(&term, 0, p->cur->count + 1);
       fseek(p->cur->file, p->cur->seek, SEEK_SET);
       fread(&term, p->cur->count, 1, p->cur->file);
 
@@ -256,7 +256,9 @@ void jsonParseMembers(Parser *p, JObject *obj) {
     if (!p->error) {
       jsonAddVal(obj, key, val);
     }
+    free(key);
   } else {
+    free(key);
     jsonPrintError(p);
   }
 }
@@ -313,10 +315,17 @@ JValue *jsonParseValue(Parser *p) {
 
 JValue *jsonParseString(Parser *p) {
   Tok *cur = p->cur;
+  const char* str = NULL;
   if (cur->type == SINGLE_QUOTE) {
-    return jsonStringValue(jsonParseQuotedString(p, '\''));
+    str = jsonParseQuotedString(p, '\'');
   } else if (cur->type == DOUBLE_QUOTE) {
-    return jsonStringValue(jsonParseQuotedString(p, '"'));
+    str = jsonParseQuotedString(p, '"');
+  }
+  
+  if(str) {
+    JValue *val = jsonStringValue(str);
+    free(str);
+    return val;
   }
   return 0;
 }
@@ -431,10 +440,8 @@ void jsonRewind(Parser *p, Tok *saved) {
 
 JValue *jsonParseArray(Parser *p) {
   typedef struct ArrayVal {
-    struct Entry {
-      struct ArrayVal *next;
-    } entry;
     JValue *val;
+    struct ArrayVal *next;
   } ArrayVal;
 
 #define ARRAY_TYPE(t) \
@@ -452,8 +459,9 @@ JValue *jsonParseArray(Parser *p) {
   ArrayVal *head = 0;
   head = curVal;
 
-  int count = 1;
+  int count = 0;
   short singleValueType = -1;
+  ArrayVal *nextVal = 0;
   do {
     consume(p); //first time consume open bracket then commas
     consumeWhitespace(p);
@@ -461,6 +469,7 @@ JValue *jsonParseArray(Parser *p) {
 
     if (!curVal || p->error) {
       //need to cleanup ArrayVal's
+      puts("We need to cleanup ArrayVals");
       return 0;
     }
 
@@ -474,10 +483,10 @@ JValue *jsonParseArray(Parser *p) {
     }
     singleValueType = ARRAY_TYPE(curVal->val->value_type);
 
-    ArrayVal *nextVal = malloc(sizeof(ArrayVal));
+    nextVal = malloc(sizeof(ArrayVal));
+    memset(nextVal, 0, sizeof(ArrayVal));
     nextVal->val = 0;
-    nextVal->entry.next = 0;
-    curVal->entry.next = nextVal;
+    curVal->next = nextVal;
     curVal = nextVal;
     ++count;
     consumeWhitespace(p);
@@ -491,6 +500,7 @@ JValue *jsonParseArray(Parser *p) {
 
 //Now we know how many we have lets allocate
   JValue *arrayVal = malloc(sizeof(JValue));
+
   JValue** arry = malloc(sizeof(*arry) * count);
   arrayVal->size = sizeof(*arry) * count;
   arrayVal->value = arry;
@@ -504,11 +514,48 @@ JValue *jsonParseArray(Parser *p) {
     }
 
     deletable = curVal;
-    curVal = curVal->entry.next;
+    curVal = curVal->next;
     free(deletable);
     ++index;
   }
   arrayVal->value_type = singleValueType;
+
+  if (arrayVal->value_type == VAL_INT_ARRAY) {
+    //convert to array of ints
+    int *integers = malloc(sizeof(*integers) * count);
+    for (int i = 0; i < count; ++i) {
+      int *num = (int*) arry[i]->value;
+      integers[i] = *num;
+      jsonFree(arry[i]);
+    }
+    arrayVal->value = integers;
+  } else if (arrayVal->value_type == VAL_FLOAT_ARRAY) {
+    //convert to array of floats
+    float *floats = malloc(sizeof(*floats) * count);
+    for (int i = 0; i < count; ++i) {
+      float *num = (float*) arry[i]->value;
+      floats[i] = *num;
+      jsonFree(arry[i]);
+    }
+    arrayVal->value = floats;
+  } else if (arrayVal->value_type == VAL_DOUBLE_ARRAY) {
+    //convert to array of doubles
+    float *doubles = malloc(sizeof(*doubles) * count);
+    for (int i = 0; i < count; ++i) {
+      double *num = (double*) arry[i]->value;
+      doubles[i] = *num;
+      jsonFree(arry[i]);
+    }
+    arrayVal->value = doubles;
+  } else if (arrayVal->value_type == VAL_STRING_ARRAY) {
+    char **strings = malloc(sizeof(*strings) * count);
+    for (int i = 0; i < count; ++i) {
+      char **num = (char**) arry[i]->value;
+      strings[i] = strdup(*num);
+      jsonFree(arry[i]);
+    }
+    arrayVal->value = strings;
+  }
 
   return arrayVal;
 }
@@ -531,9 +578,6 @@ JValue *jsonParse(const char *filename) {
 JValue *jsonParseF(FILE *file) {
   Parser p;
   p.error = 0;
-  if(p.error_message) {
-    free(p.error_message);
-  }
   p.error_message = strdup("Unknown Error");
   Tok *first = p.cur = ffirst(file);
   if (p.cur) {
