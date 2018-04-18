@@ -19,25 +19,15 @@ int main(int count, const char**argv) {
 		return EXIT_FAILURE;
 	}
 	printf("Loading JSON: %s\n", argv[1]);
-	printf("FNV Hash: %d\n", fnvstr("Hello"));
 	JValue *val = jsonParse(argv[1]);
 
 	if(!val) {
 	  exit(0);
 	}
 	
-	JObject *obj = (JObject*)val->value;
-	puts("Adding keys...");
-	printf("Message %d, status %d\n", fnvstr("message") % 100, fnvstr("status") % 100);
-	jsonAddVal(obj, "message", jsonStringValue("Success."));
-	jsonAddVal(obj, "status", jsonIntValue(200));
-
-	printf("Object key size now: %d\n", obj->size);
-
-	JObject *nobj = jsonObject(obj, "nick.me");
-
-	if(nobj == 0) {
-	  printf("Could not find the obj\n");
+	if(count >= 3) {
+	  JObject *obj = (JObject*)val->value;
+	  printf("%s: %d\n", argv[2], jsonInt(obj, argv[2]));
 	}
 	
 	jsonFree(val);

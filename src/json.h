@@ -46,7 +46,7 @@ typedef struct JObject {
  * float val = jsonFloat(jsonObject, "key.key.key");
  * double val = jsonDouble(jsonObject, "key.key.key");
  * char *val = jsonString(jsonObject, "key.key.key");
- * bool val = jsonBool(jsonObject, "key.key.key");
+ * char val = jsonBool(jsonObject, "key.key.key");
  * int objects[] = jsonArray(jsonObject, "key.key.key");
  * int vals[] = jsonIntArray(jsonObject, "key.key.key");
  * float vals[] = jsonFoatArray(jsonObject, "key.key.key");
@@ -64,7 +64,8 @@ JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
 JObject* jsonAddString(JObject *pbj, const char *name, const char *value);
 
 JValue* jsonGet(const JObject *obj, const char *key);
-JValue* jsonStringValue(const char *name);
+JValue* jsonBoolValue(const char value);
+JValue* jsonStringValue(const char *value);
 JValue* jsonIntValue(const int value);
 JValue* jsonFloatValue(const float value);
 JValue* jsonDoubleValue(const double value);
@@ -87,6 +88,7 @@ double        jsonDouble(const JObject *obj, const char* keys);
 char *        jsonString(const JObject *obj, const char* keys);
 char          jsonBool(const JObject *obj, const char* keys);
 JValue**      jsonArray(const JObject *obj, const char* keys);
+char*         jsonBoolArray(const JObject *obj, const char* keys);
 int**         jsonIntArray(const JObject *obj, const char* keys);
 float**       jsonFoatArray(const JObject *obj, const char* keys);
 double**      jsonDoubleArray(const JObject *obj, const char* keys);

@@ -169,20 +169,27 @@ void printTok(Tok *tok) {
 }
 
 int isTerm(Parser *p, const char *cterm) {
+
   if (p->cur->type == OTHER) {
+
     Tok *start = p->cur;
+    while(p->cur->type == OTHER) {
+      consume(p);
+    }
+    jsonRewind(p, start);
+    
     int cterm_len = strlen(cterm);
     if (cterm_len == p->cur->count) {
       char term[p->cur->count + 1];
-      memset(&term, 0, p->cur->count + 1);
+      memset(term, 0, p->cur->count + 1);
       fseek(p->cur->file, p->cur->seek, SEEK_SET);
-      fread(&term, p->cur->count, 1, p->cur->file);
-
-      jsonRewind(p, start);
+      fread(term, p->cur->count, 1, p->cur->file);
 
       if (strcmp(cterm, term) == 0) {
         return 1;
       }
+
+      jsonRewind(p, start);
     }
   }
 
@@ -318,6 +325,18 @@ JValue *jsonParseValue(Parser *p) {
   if(val) {
     jsonFree(val);
   }
+  
+  jsonRewind(p, saved);
+  
+  val = jsonParseBool(p);
+  
+  if(val && !p->error) {
+    return val;
+  }
+  
+  if(val) {
+    jsonFree(val);
+  }
 
   return 0;
 }
@@ -335,6 +354,18 @@ JValue *jsonParseString(Parser *p) {
     JValue *val = jsonStringValue(str);
     free((void*)str);
     return val;
+  }
+  return 0;
+}
+
+JValue *jsonParseBool(Parser *p) {
+  consumeWhitespace(p);
+  if(isTerm(p, "true")) {
+    return jsonBoolValue(1);
+  }else if(isTerm(p, "false")){
+    return jsonBoolValue(0);
+  }else{
+    UNEXPECTED_TOKEN(p)
   }
   return 0;
 }

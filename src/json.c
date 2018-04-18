@@ -152,10 +152,19 @@ char *allButLast(const char *keys) {
   return newkeys;
 }
 
-JValue* jsonStringValue(const char *name) {
+JValue* jsonBoolValue(const char value) {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_BOOL;
+  val->value = malloc(sizeof(char));
+  memcpy(val->value, &value, sizeof(char));
+  val->size = sizeof(char);
+  return val;
+}
+
+JValue* jsonStringValue(const char *value) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_STRING;
-  val->value = strdup(name);
+  val->value = strdup(value);
   val->size = strlen(val->value) + 1;
   return val;
 }
@@ -295,7 +304,33 @@ char* jsonString(const JObject *obj, const char* keys) {
 }
 
 char jsonBool(const JObject* obj, const char* keys) {
-  return 0;
+  if(keys == NULL) {
+    return -1;
+  }
+  char *firstKeys = allButLast(keys);
+  const JObject *parentObj = obj;
+
+  if (firstKeys != NULL) {
+    parentObj = jsonObject(obj, firstKeys);
+    free(firstKeys);
+  }
+
+  if (parentObj != NULL) {
+    char *lastKey = last(keys);
+    if(lastKey != NULL) {
+      JValue *val = jsonGet(parentObj, lastKey);
+      free(lastKey);
+      if (val && val->value_type == VAL_BOOL) {
+        return *(char*)val->value;
+      }
+    }
+  }
+
+  return -1;
+}
+
+char* jsonBoolArray(const JObject *obj, const char* keys) {
+  return NULL;
 }
 
 JValue** jsonArray(const JObject* obj, const char* keys) {

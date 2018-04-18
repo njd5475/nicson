@@ -68,6 +68,7 @@ JValue*     jsonParseObject(Parser *p);
 void        jsonParseMembers(Parser *p, JObject *obj);
 const char* jsonParseQuotedString(Parser* parser, char quote);
 JValue*     jsonParseString(Parser *p);
+JValue*     jsonParseBool(Parser *p);
 JValue*     jsonParseNumber(Parser *p);
 JValue*     jsonParseValue(Parser *startAt);
 
