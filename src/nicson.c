@@ -22,9 +22,8 @@ int main(int count, const char**argv) {
 	printf("FNV Hash: %d\n", fnvstr("Hello"));
 	JValue *val = jsonParse(argv[1]);
 
-	if(!val && val->value_type != VAL_OBJ) {
-	  jsonPrintError();
-	  exit(1);
+	if(!val) {
+	  exit(0);
 	}
 	
 	JObject *obj = (JObject*)val->value;
