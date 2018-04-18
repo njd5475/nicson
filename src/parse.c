@@ -234,7 +234,8 @@ JValue *jsonParseObject(Parser *p) {
     }
   } while (p->cur->type == COMMA);
 
-  if (p->error != 0) {
+  if (p->error) {
+    jsonFree(jsonObjectValue(obj));
     return 0;
   }
 
@@ -256,9 +257,9 @@ void jsonParseMembers(Parser *p, JObject *obj) {
     if (!p->error) {
       jsonAddVal(obj, key, val);
     }
-    free(key);
+    free((void*)key);
   } else {
-    free(key);
+    free((void*)key);
     jsonPrintError(p);
   }
 }
@@ -276,10 +277,6 @@ void jsonExpectPairSeparator(Parser *p) {
   consumeWhitespace(p);
 }
 
-JValue *jsonParsePair(Tok *startAt, JObject *obj) {
-  return 0;
-}
-
 JValue *jsonParseValue(Parser *p) {
   Tok *saved = p->cur;
   JValue *val = jsonParseString(p);
@@ -293,6 +290,10 @@ JValue *jsonParseValue(Parser *p) {
   if (val && !p->error) {
     return val;
   }
+  
+  if(val) {
+    jsonFree(val);
+  }
 
   jsonRewind(p, saved);
 
@@ -302,12 +303,20 @@ JValue *jsonParseValue(Parser *p) {
     return val;
   }
 
+  if (val) {
+    jsonFree(val);
+  }
+  
   jsonRewind(p, saved);
 
   val = jsonParseNumber(p);
 
   if (val && !p->error) {
     return val;
+  }
+  
+  if(val) {
+    jsonFree(val);
   }
 
   return 0;
@@ -324,7 +333,7 @@ JValue *jsonParseString(Parser *p) {
   
   if(str) {
     JValue *val = jsonStringValue(str);
-    free(str);
+    free((void*)str);
     return val;
   }
   return 0;
@@ -414,7 +423,7 @@ JValue *jsonParseNumber(Parser *p) {
       return jsonFloatValue((float) value);
     }
 
-//otherwise we have a double
+    // otherwise we have a double
     return jsonDoubleValue(value);
   }
 
@@ -550,11 +559,15 @@ JValue *jsonParseArray(Parser *p) {
   } else if (arrayVal->value_type == VAL_STRING_ARRAY) {
     char **strings = malloc(sizeof(*strings) * count);
     for (int i = 0; i < count; ++i) {
-      char **num = (char**) arry[i]->value;
-      strings[i] = strdup(*num);
+      char *string = (char*) arry[i]->value;
+      strings[i] = strdup(string);
       jsonFree(arry[i]);
     }
     arrayVal->value = strings;
+  }
+  
+  if(arrayVal->value_type != VAL_MIXED_ARRAY) {
+    free(arry);
   }
 
   return arrayVal;
@@ -604,6 +617,8 @@ JValue *jsonParseF(FILE *file) {
   free(first);
   fclose(file);
   BAD_CHARACTER(&p)
+  jsonPrintError(&p);
+  free(p.error_message);
   return 0;
 }
 

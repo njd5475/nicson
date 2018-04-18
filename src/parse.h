@@ -65,7 +65,6 @@ void        jsonSetParserError(Parser *p, unsigned int, const char* err);
 
 JValue*     jsonParseArray(Parser *p);
 JValue*     jsonParseObject(Parser *p);
-JValue*     jsonParsePair(Tok* start, JObject *obj);
 void        jsonParseMembers(Parser *p, JObject *obj);
 const char* jsonParseQuotedString(Parser* parser, char quote);
 JValue*     jsonParseString(Parser *p);

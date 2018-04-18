@@ -327,6 +327,7 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
   char *key = nextKey(keys, &index);
   JValue *jval = jsonGet(obj, key);
   if (!jval || jval->value_type != VAL_OBJ) {
+    free(key);
     return 0;
   }
 
