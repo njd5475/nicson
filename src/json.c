@@ -4,73 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
-  if (!obj) {
-    obj = jsonNewObject();
-  }
-
-  JEntry *entry = malloc(sizeof(JEntry));
-  entry->name = strdup(name);
-  entry->value = value;
-  entry->probes = 1;
-  entry->hash = fnvstr(entry->name);
-  int index = (entry->hash + (entry->probes - 1)) % obj->_arraySize;
-
-  while (obj->entries[index] != 0) {
-    printf("Hash Collision...probing\n");
-
-    // steal the slot if the probed entrys' probes is less than mine
-    if (obj->entries[index]->probes < entry->probes) {
-      JEntry *tmp = obj->entries[index];
-      obj->entries[index] = entry;
-      entry = tmp; //swap
-    }
-
-    // adjust hash key and keep going
-    ++entry->probes;
-    index = (entry->hash + (entry->probes - 1)) % obj->_arraySize;
-
-    //TODO: handle resizing the hashtable
-  }
-  obj->entries[index] = entry;
-  ++obj->size;
-  return obj;
-}
-
-JObject* jsonAddObj(JObject *obj, const char *name, JObject *value) {
-  return jsonAddVal(obj, name, jsonObjectValue(value));
-}
-
-JObject* jsonAddInt(JObject *obj, const char *name, const int value) {
-  return jsonAddVal(obj, name, jsonIntValue(value));
-}
-
-JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
-  return jsonAddVal(obj, name, jsonUIntValue(value));
-}
-
-JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
-  return jsonAddVal(obj, name, jsonStringValue(value));
-}
-
-JValue* jsonGet(const JObject *obj, const char* key) {
-  int keyhash = fnvstr(key);
-  int index = keyhash % obj->_arraySize;
-
-  while (obj->entries[index] != 0 && obj->entries[index]->hash != keyhash) {
-    printf("We looked and did not find the key\n");
-    // not found, keep probing
-    index = (++keyhash) % obj->_arraySize;
-  }
-
-  if (obj->entries[index]) {
-    return obj->entries[index]->value;
-  }
-
-  printf("Did not find key %s\n", key);
-  return 0;
-}
-
 char *nextKey(const char *keys, int *last) {
   if(!keys || !last) {
     return 0;
@@ -104,6 +37,115 @@ char *nextKey(const char *keys, int *last) {
   }
   
   return newkey;
+}
+
+
+JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
+  if (!obj) {
+    obj = jsonNewObject();
+  }
+
+  JEntry *entry = malloc(sizeof(JEntry));
+  entry->name = strdup(name);
+  entry->value = value;
+  entry->probes = 1;
+  entry->hash = fnvstr(entry->name);
+  int index = (entry->hash + (entry->probes - 1)) % obj->_arraySize;
+
+  while (obj->entries[index] != 0) {
+    
+    // steal the slot if the probed entrys' probes is less than mine
+    if (obj->entries[index]->probes < entry->probes) {
+      JEntry *tmp = obj->entries[index];
+      obj->entries[index] = entry;
+      entry = tmp; //swap
+    }
+
+    // adjust hash key and keep going
+    ++entry->probes;
+    index = (entry->hash + (entry->probes - 1)) % obj->_arraySize;
+
+    //TODO: handle resizing the hashtable
+    if(entry->probes >= (obj->_arraySize / 5)) {
+      printf("We reached the maximum probes we need to resize the hash table\n");
+      
+    }
+  }
+  obj->entries[index] = entry;
+  ++obj->size;
+  return obj;
+}
+
+JObject* jsonAddObj(JObject *obj, const char *name, JObject *value) {
+  return jsonAddVal(obj, name, jsonObjectValue(value));
+}
+
+JObject* jsonAddInt(JObject *obj, const char *name, const int value) {
+  return jsonAddVal(obj, name, jsonIntValue(value));
+}
+
+JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
+  return jsonAddVal(obj, name, jsonUIntValue(value));
+}
+
+JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
+  return jsonAddVal(obj, name, jsonStringValue(value));
+}
+
+JValue* _jsonGetObjVal(const JObject *obj, const char* keys) {
+  int keyhash = fnvstr(keys);
+  int index = keyhash % obj->_arraySize;
+
+  while (obj->entries[index] != 0 && obj->entries[index]->hash != keyhash) {
+    printf("We looked and did not find the key\n");
+    // not found, keep probing
+    index = (++keyhash) % obj->_arraySize;
+  }
+
+  if (obj->entries[index]) {
+    return obj->entries[index]->value;
+  }
+
+  printf("Did not find key %s\n", keys);
+  return 0;
+}
+
+JValue* jsonGet(const JObject *obj, const char* keys) {
+  if (obj == 0 || !keys) {
+    return 0;
+  }
+
+  JValue *jval = NULL;
+  const JObject *found = obj;
+  char *key = NULL;
+  int index = 0;
+  do {
+    key = nextKey(keys, &index);
+    printf("Looking for key %s\n", key);
+    jval = _jsonGetObjVal(found, key);
+    if (jval && jval->value_type == VAL_OBJ) {
+      found = (JObject*) jval->value;
+    } else if(key && index > -1) {
+      if (jval) {
+        printf("Err: Key %s was the wrong type.\n", keys);
+      } else {
+        printf("Err: Object did not contains a next object %s\n", keys);
+      }
+      if(key) {
+        free(key);
+      }
+      return 0;
+    }
+    
+    if(key != NULL) {
+      free(key);
+      key = NULL;
+    }
+  } while (index > -1);
+  
+
+  
+  return jval;
 }
 
 char *last(const char *keys) {
@@ -214,6 +256,14 @@ JValue* jsonObjectValue(JObject *obj) {
   return val;
 }
 
+JValue* jsonNullValue() {
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_NULL;
+  val->size = 0;
+  val->value = 0;
+  return val;
+}
+
 JValue* jsonStringArrayValue(const char **strings) {
   return 0;
 }
@@ -238,10 +288,10 @@ JValue *jsonMixedArrayValue(JValue **values) {
 
 JObject *jsonNewObject() {
   JObject *obj = malloc(sizeof(JObject));
-  obj->_arraySize = 100;
+  obj->_arraySize = 1000;
   obj->size = 0;
-  obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
-  memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
+  obj->entries = malloc(sizeof(obj->entries[0]) * obj->_arraySize);
+  memset(obj->entries, 0, sizeof(obj->entries[0]) * obj->_arraySize);
   return obj;
 }
 
@@ -330,6 +380,12 @@ char jsonBool(const JObject* obj, const char* keys) {
 }
 
 char* jsonBoolArray(const JObject *obj, const char* keys) {
+  JValue *val = jsonGet(obj, keys);
+  if(val && val->value_type == VAL_BOOL_ARRAY) {
+    char *ret = malloc(sizeof(ret[0])*val->size);
+    memcpy(ret, val->value, val->size);
+    return ret;
+  }
   return NULL;
 }
 

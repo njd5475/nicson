@@ -11,14 +11,69 @@ FILE *inlineJson(const char *jstr, char **deleteThis) {
     return fmemopen(buf, (sizeof(char)*strlen(buf)+1), "r");
 }
 
-TEST(JsonParserWorks, shouldParseBoolArray) {
+TEST(JsonParserWorks, shouldParseNullvalue) {
   char *deleteMe = NULL;
-  JValue *val = jsonParseF(inlineJson("{\"parsesBoolArray\": [\ntrue\n]\n}", &deleteMe));
+  JValue *val = jsonParseF(inlineJson("{\"parsesNullValue\": null}", &deleteMe));
   ASSERT_NE(NULL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   JObject *obj = (JObject*)val->value;
-  EXPECT_EQ(jsonBoolArray(obj, "parsesBoolArray")[0], 1);
+  JValue *nullVal = jsonGet(obj, "parsesNullValue");
+  ASSERT_NE(NULL, nullVal);
+  EXPECT_EQ(nullVal->value_type, VAL_NULL);
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseBoolArray) {
+  char *deleteMe = NULL;
+  JValue *val = jsonParseF(inlineJson("{\"parsesBoolArray\": [\ntrue\n,\n false\n]\n}", &deleteMe));
+  ASSERT_NE(NULL, val);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
+  
+  JObject *obj = (JObject*)val->value;
+  char *bools = jsonBoolArray(obj, "parsesBoolArray");
+  EXPECT_EQ(bools[0], 1);
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseBoolArrayWithNewLines) {
+  char *deleteMe = NULL;
+  JValue *val = jsonParseF(inlineJson("{\"something_something\": true,\n\"items\": [\n{\n},\n false\n]\n}", &deleteMe));
+  ASSERT_NE(NULL, val);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
+  
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseBool) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"thisIsTrue\": true, \"thisIsFalse\": false}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  EXPECT_TRUE(val != NULL);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseEmptyArray) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"thisIsTrue\": []}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  EXPECT_TRUE(val != NULL);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseArrayAfterBool) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"thisIsTrue\": false, \"thisIsFalse\": []}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  EXPECT_TRUE(val != NULL);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
 }
@@ -76,6 +131,16 @@ TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
 TEST(JsonParserWorks, shouldParseEmptyObject) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  EXPECT_TRUE(val != NULL);
+  EXPECT_EQ(val->value_type, VAL_OBJ);
+  jsonFree(val);
+  free(deleteMe);
+}
+
+TEST(JsonParserWorks, shouldParseBools) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"thisIsTrue\": true, \"thisIsFalse\": false}", &deleteMe);
   JValue *val = jsonParseF(file);
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_OBJ);

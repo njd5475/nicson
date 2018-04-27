@@ -22,13 +22,15 @@
   malloc((printf("Allocating %.0f bytes, in %s at %d\n", (float)p, __FILE__, __LINE__) * 0)+ p)
 #endif
 
-#define NOT_IMPLEMENTED(p)   jsonSetParserError(p, 42, "parseArray: Not Implemented");
-#define UNEXPECTED_TOKEN(p)  jsonSetParserError(p, 43, "Unexpected Token");
-#define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character");
+#define NOT_IMPLEMENTED(p)   jsonSetParserError(p, 42, "parseArray: Not Implemented", __FILE__, __LINE__);
+#define UNEXPECTED_TOKEN(p)  jsonSetParserError(p, 43, "Unexpected Token", __FILE__, __LINE__);
+#define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character", __FILE__, __LINE__);
 
-void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg) {
+void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg, const char *file, int ln) {
   p->error = errNo;
   p->error_tok = p->cur;
+  p->error_in_file = file;
+  p->error_on_line = ln;
   if (p->error_message) {
     free(p->error_message);
   }
@@ -37,7 +39,7 @@ void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg) {
 
 void jsonPrintError(Parser *p) {
   fflush(stdout);
-  fprintf(stderr, "Parse error: %s, for %s, at ln %d, col %d\n",
+  fprintf(stderr, "Parse error %s(%d): %s, for %s, at ln %d, col %d\n", p->error_in_file, p->error_on_line,
       p->error_message, strTokType(p->error_tok), p->error_tok->line,
       p->error_tok->column);
 }
@@ -71,6 +73,7 @@ Tok *next(Tok *last) {
       return 0;
     }
     fseek(last->file, last->seek + last->count, SEEK_SET);
+    fflush(last->file);
     char buf = '\0';
     fread(&buf, 1, 1, last->file);
 
@@ -183,9 +186,11 @@ int isTerm(Parser *p, const char *cterm) {
       char term[p->cur->count + 1];
       memset(term, 0, p->cur->count + 1);
       fseek(p->cur->file, p->cur->seek, SEEK_SET);
-      fread(term, p->cur->count, 1, p->cur->file);
+      fflush(p->cur->file);
+      fread(term, sizeof(term[0]), p->cur->count, p->cur->file);
 
       if (strcmp(cterm, term) == 0) {
+        consume(p);
         return 1;
       }
 
@@ -338,6 +343,14 @@ JValue *jsonParseValue(Parser *p) {
     jsonFree(val);
   }
 
+  jsonRewind(p, saved);
+  
+  if(isTerm(p, "null")) {
+    return jsonNullValue();
+  }else{
+    UNEXPECTED_TOKEN(p);
+  }
+  
   return 0;
 }
 
@@ -414,7 +427,6 @@ JValue *jsonParseNumber(Parser *p) {
     }
 
     if (isTerm(p, "E") || isTerm(p, "e")) {
-      consume(p);
       char sign = '+';
       if (p->cur->type == PLUS_MINUS) {
         sign = getCharAt(p->cur, 0);
@@ -488,7 +500,8 @@ JValue *jsonParseArray(Parser *p) {
    (t == VAL_INT ? VAL_INT_ARRAY : \
      (t == VAL_FLOAT ? VAL_FLOAT_ARRAY : \
        (t == VAL_DOUBLE ? VAL_DOUBLE_ARRAY : \
-         (t == VAL_STRING ? VAL_STRING_ARRAY : VAL_MIXED_ARRAY))))
+         (t == VAL_STRING ? VAL_STRING_ARRAY : \
+             (t == VAL_BOOL ? VAL_BOOL_ARRAY : VAL_MIXED_ARRAY)))))
 
   if (p->cur->type != OPEN_BRACKET) {
     UNEXPECTED_TOKEN(p);
@@ -505,6 +518,9 @@ JValue *jsonParseArray(Parser *p) {
   do {
     consume(p); //first time consume open bracket then commas
     consumeWhitespace(p);
+    if(p->cur->type == CLOSE_BRACKET) {
+      break;
+    }
     curVal->val = jsonParseValue(p);
 
     if (!curVal || p->error) {
@@ -537,10 +553,17 @@ JValue *jsonParseArray(Parser *p) {
     return 0;
   }
   consume(p);
-
+  
 //Now we know how many we have lets allocate
   JValue *arrayVal = malloc(sizeof(JValue));
 
+  if(count == 0) {
+    arrayVal->size = 0;
+    arrayVal->value = 0;
+    arrayVal->value_type = VAL_MIXED_ARRAY;
+    return arrayVal;
+  }
+  
   JValue** arry = malloc(sizeof(*arry) * count);
   arrayVal->size = sizeof(*arry) * count;
   arrayVal->value = arry;
@@ -595,6 +618,13 @@ JValue *jsonParseArray(Parser *p) {
       jsonFree(arry[i]);
     }
     arrayVal->value = strings;
+  } else if (arrayVal->value_type == VAL_BOOL_ARRAY) {
+    char *bools = malloc(sizeof(bools[0]) * count);
+    for (int i = 0; i < count; ++i) {
+      bools[i] = ((char*)arry[i]->value)[0];
+      jsonFree(arry[i]);
+    }
+    arrayVal->value = bools;
   }
   
   if(arrayVal->value_type != VAL_MIXED_ARRAY) {
@@ -654,12 +684,16 @@ JValue *jsonParseF(FILE *file) {
 }
 
 char getCharAt(Tok *tok, int index) {
+  if(!tok) {
+    return -1;
+  }
   char buf;
   int seekPos = tok->seek + index;
   if (seekPos > tok->seek + tok->count) {
     seekPos = tok->seek + tok->count;
   }
   fseek(tok->file, seekPos, SEEK_SET);
+  fflush(tok->file);
   fread(&buf, 1, 1, tok->file);
   return buf;
 }

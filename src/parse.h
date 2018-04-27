@@ -41,6 +41,8 @@ typedef struct Parser {
     unsigned int error;
     Tok *error_tok;
     char* error_message;
+    const char* error_in_file;
+    int error_on_line;
 } Parser;
 
 TokType     tokType(const char c);
@@ -61,7 +63,7 @@ void        jsonExpectPairSeparator(Parser *p);
 
 void*       expectPairSeparator(Tok *start);
 
-void        jsonSetParserError(Parser *p, unsigned int, const char* err);
+void        jsonSetParserError(Parser *p, unsigned int, const char* err, const char *file, int ln);
 
 JValue*     jsonParseArray(Parser *p);
 JValue*     jsonParseObject(Parser *p);

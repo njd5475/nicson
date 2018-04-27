@@ -18,6 +18,7 @@
 #define VAL_BOOL_ARRAY    12
 #define VAL_OBJ_ARRAY     13
 #define VAL_MIXED_ARRAY   14 /* JValue array */
+#define VAL_NULL          15
 
 typedef struct JValue {
   short value_type;
@@ -63,7 +64,6 @@ JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
 JObject* jsonAddString(JObject *pbj, const char *name, const char *value);
 
-JValue* jsonGet(const JObject *obj, const char *key);
 JValue* jsonBoolValue(const char value);
 JValue* jsonStringValue(const char *value);
 JValue* jsonIntValue(const int value);
@@ -75,12 +75,14 @@ JValue* jsonStringArrayValue(const char **strings);
 JValue* jsonIntArrayValue(int **vals);
 JValue* jsonFloatArrayValue(float **vals);
 JValue* jsonDoubleArrayValue(double **vals);
+JValue* jsonNullValue();
 
 JValue*       jsonParse(const char *filename);
 JValue*       jsonParseF(FILE *file);
 const char*   jsonParserError();
 void          jsonPrintError();
 JObject*      jsonNewObject();
+JValue*       jsonGet(const JObject *obj, const char *keys);
 int           jsonInt(const JObject *obj, const char* keys);
 unsigned int  jsonUInt(const JObject *obj, const char* keys);
 float         jsonFloat(const JObject *obj, const char* keys);
