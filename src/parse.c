@@ -549,6 +549,9 @@ JValue *jsonParseArray(Parser *p) {
   } while (p->cur->type == COMMA);
 
   if (p->cur->type != CLOSE_BRACKET) {
+	if(curVal) {
+	  free(curVal);
+	}
     UNEXPECTED_TOKEN(p);
     return 0;
   }
@@ -558,6 +561,9 @@ JValue *jsonParseArray(Parser *p) {
   JValue *arrayVal = malloc(sizeof(JValue));
 
   if(count == 0) {
+	if(curVal) {
+	  free(curVal);
+	}
     arrayVal->size = 0;
     arrayVal->value = 0;
     arrayVal->value_type = VAL_MIXED_ARRAY;
@@ -656,7 +662,7 @@ JValue *jsonParseF(FILE *file) {
   Tok *first = p.cur = ffirst(file);
   if (p.cur) {
     consumeWhitespace(&p);
-    JValue *val;
+    JValue *val = NULL;
     if (p.cur->type == OPEN_BRACKET) {
       val = jsonParseArray(&p);
     } else if (p.cur->type == OPEN_BRACE) {

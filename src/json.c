@@ -11,7 +11,8 @@ char *nextKey(const char *keys, int *last) {
   
   int start = *last;
   int begin = start;
-  for (; keys[start] != '.' && keys[start]; ++start) {
+  for (; keys[start] != '.' &&
+  	  keys[start]; ++start) {
     ;
   }
   
@@ -328,7 +329,7 @@ double jsonDouble(const JObject *obj, const char* keys) {
 }
 
 char* jsonString(const JObject *obj, const char* keys) {
-  if(keys == NULL) {
+  if(keys == NULL || obj == NULL) {
     return NULL;
   }
   char *firstKeys = allButLast(keys);
@@ -382,9 +383,11 @@ char jsonBool(const JObject* obj, const char* keys) {
 char* jsonBoolArray(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if(val && val->value_type == VAL_BOOL_ARRAY) {
-    char *ret = malloc(sizeof(ret[0])*val->size);
-    memcpy(ret, val->value, val->size);
-    return ret;
+	if(val->size > 0) {
+		char *ret = malloc(sizeof(ret[0])*val->size);
+		memcpy(ret, val->value, val->size);
+		return ret;
+	}
   }
   return NULL;
 }
