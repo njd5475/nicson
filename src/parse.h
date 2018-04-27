@@ -25,13 +25,13 @@
 #define EXPONENT     14
 #define PLUS_MINUS   15
 
-typedef unsigned short TokType;
+typedef unsigned char TokType;
 typedef struct Tok {
   FILE *file;
-  int seek;
-  int count;
-  int line;
-  int column;
+  int   seek;
+  short count;
+  int   line;
+  int   column;
   TokType type;
   struct Tok *previous;
 } Tok;

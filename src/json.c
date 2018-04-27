@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEFAULT_HASH_SIZE   50
+#define DEFAULT_INC_AMOUNT  50
+
 char *nextKey(const char *keys, int *last) {
   if (!keys || !last) {
     return 0;
@@ -81,7 +84,7 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
     printf("Reached the max probes amount!\n");
     JEntry **oldEntries = obj->entries;
     int oldCount = obj->_arraySize;
-    obj->_arraySize += 50;
+    obj->_arraySize += DEFAULT_INC_AMOUNT;
     obj->size = 0;
     obj->entries = malloc(sizeof(obj->entries[0]) * obj->_arraySize);
     memset(obj->entries, 0, sizeof(obj->entries[0]) * obj->_arraySize);
@@ -311,7 +314,7 @@ JValue *jsonMixedArrayValue(JValue **values) {
 
 JObject *jsonNewObject() {
   JObject *obj = malloc(sizeof(JObject));
-  obj->_arraySize = 50;
+  obj->_arraySize = DEFAULT_HASH_SIZE;
   obj->_maxProbes = obj->_arraySize / 5;
   obj->size = 0;
   obj->entries = malloc(sizeof(obj->entries[0]) * obj->_arraySize);
