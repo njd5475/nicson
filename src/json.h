@@ -21,7 +21,7 @@
 #define VAL_NULL          15
 
 typedef struct JValue {
-  short value_type;
+  unsigned char value_type;
   int   size;
   void  *value;
 } JValue;
@@ -34,10 +34,10 @@ typedef struct JEntry {
 } JEntry;
 
 typedef struct JObject {
-  JEntry       **entries; // hashed arrangement by key.
-  unsigned int size;
-  unsigned int _arraySize;
-  unsigned int _maxProbes;
+  JEntry         **entries; // hashed arrangement by key.
+  unsigned int   size;
+  unsigned int   _arraySize;
+  unsigned short _maxProbes;
 } JObject;
 
 /**
