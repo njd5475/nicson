@@ -58,21 +58,12 @@ void jsonPrintError(Parser *p) {
       p->error_tok->column);
 }
 
-Tok *first(const char *filename) {
-  FILE *file = fopen(filename, "r");
-  if (file == 0) {
-    fprintf(stderr, "Could not open file %s\n", filename);
-    exit(1);
-  }
-  return ffirst(file);
-}
-
-Tok *ffirst(FILE *file) {
+Tok *ffirst(Parser *p) {
   Tok *tok = (Tok*) malloc(sizeof(Tok));
   tok->seek = 0;
   tok->count = 1;
   char ch;
-  fread(&ch, 1, 1, file);
+  jsonRead(&ch, p, 0, 1);
   tok->type = tokType(ch);
   tok->previous = 0;
   tok->line = 1;
@@ -85,9 +76,9 @@ Tok *next(Tok *last, Parser *p) {
     if (feof(p->file)) {
       return 0;
     }
-    fseek(p->file, last->seek + last->count, SEEK_SET);
     char buf = '\0';
-    fread(&buf, 1, 1, p->file);
+
+    jsonRead(&buf, p, last->seek + last->count, 1);
 
     if (last->type == tokType(buf) && last->type == OTHER) {
       last->count++;
@@ -196,8 +187,7 @@ int isTerm(Parser *p, const char *cterm) {
     if (cterm_len == p->cur->count) {
       char term[p->cur->count + 1];
       memset(term, 0, p->cur->count + 1);
-      fseek(p->file, p->cur->seek, SEEK_SET);
-      fread(term, sizeof(term[0]), p->cur->count, p->file);
+      jsonRead(term, p, p->cur->seek, p->cur->count);
 
       if (strcmp(cterm, term) == 0) {
         consume(p);
@@ -683,7 +673,7 @@ JValue *jsonParseF(FILE *file) {
   p.file = file;
   p.error = 0;
   p.error_message = strdup("Unknown Error");
-  Tok *first = p.first = p.cur = ffirst(file);
+  Tok *first = p.first = p.cur = ffirst(&p);
   if (p.cur) {
     consumeWhitespace(&p);
     JValue *val = NULL;
@@ -723,8 +713,7 @@ char getCharAt(Parser *p, int index) {
   if (seekPos > tok->seek + tok->count) {
     seekPos = tok->seek + tok->count;
   }
-  fseek(p->file, seekPos, SEEK_SET);
-  fread(&buf, 1, 1, p->file);
+  jsonRead(&buf, p, seekPos, 1);
   return buf;
 }
 
@@ -739,9 +728,8 @@ const char *getnStrBetween(Parser *p, Tok *start, Tok *end, int count) {
   char *pos = buf + count;
   end = end->previous;
   while (start != end) {
-    fseek(p->file, end->seek, SEEK_SET);
     pos -= end->count;
-    fread(pos, end->count, 1, p->file);
+    jsonRead(pos, p, end->seek, end->count);
     end = end->previous;
   }
 
@@ -770,4 +758,9 @@ void jsonPrintParserInfo() {
   printf("Value struct size  %d\n", (unsigned int)sizeof(JValue));
   printf("Entry struct size  %d\n", (unsigned int)sizeof(JEntry));
   printf("Object struct size %d\n", (unsigned int)sizeof(JObject));
+}
+
+void jsonRead(char *buf, Parser *p, int seek, int count) {
+  fseek(p->file, seek, SEEK_SET);
+  fread(buf, sizeof(buf[0]), count, p->file);
 }

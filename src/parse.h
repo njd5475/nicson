@@ -44,11 +44,12 @@ typedef struct Parser {
     char* error_message;
     const char* error_in_file;
     int error_on_line;
+    int buf_seek;
+    char buf[1024];
 } Parser;
 
 TokType     tokType(const char c);
-Tok*        first(const char* filename);
-Tok*        ffirst(FILE *file);
+Tok*        ffirst(Parser *p);
 Tok*        next(Tok *last, Parser *p);
 const char *strTokType(Tok *tok);
 void        printTok(Tok *tok);
@@ -61,6 +62,7 @@ const char* getnStrBetween(Parser *p, Tok *start, Tok *end, int count);
 
 void        jsonRewind(Parser *p, Tok *saved);
 void        jsonExpectPairSeparator(Parser *p);
+void        jsonRead(char *buf, Parser *p, int seek, int count);
 
 void*       expectPairSeparator(Tok *start);
 
