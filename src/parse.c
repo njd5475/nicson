@@ -69,11 +69,10 @@ Tok *first(const char *filename) {
 
 Tok *ffirst(FILE *file) {
   Tok *tok = (Tok*) malloc(sizeof(Tok));
-  tok->file = file;
   tok->seek = 0;
   tok->count = 1;
   char ch;
-  fread(&ch, 1, 1, tok->file);
+  fread(&ch, 1, 1, file);
   tok->type = tokType(ch);
   tok->previous = 0;
   tok->line = 1;
@@ -81,21 +80,20 @@ Tok *ffirst(FILE *file) {
   return tok;
 }
 
-Tok *next(Tok *last) {
+Tok *next(Tok *last, Parser *p) {
   if (last) {
-    if (feof(last->file)) {
+    if (feof(p->file)) {
       return 0;
     }
-    fseek(last->file, last->seek + last->count, SEEK_SET);
+    fseek(p->file, last->seek + last->count, SEEK_SET);
     char buf = '\0';
-    fread(&buf, 1, 1, last->file);
+    fread(&buf, 1, 1, p->file);
 
     if (last->type == tokType(buf) && last->type == OTHER) {
       last->count++;
       return last;
     } else {
       Tok *next = (Tok*) malloc(sizeof(Tok));
-      next->file = last->file;
       next->seek = last->seek + last->count;
       next->count = 1;
       if (buf == '\n') {
@@ -198,8 +196,8 @@ int isTerm(Parser *p, const char *cterm) {
     if (cterm_len == p->cur->count) {
       char term[p->cur->count + 1];
       memset(term, 0, p->cur->count + 1);
-      fseek(p->cur->file, p->cur->seek, SEEK_SET);
-      fread(term, sizeof(term[0]), p->cur->count, p->cur->file);
+      fseek(p->file, p->cur->seek, SEEK_SET);
+      fread(term, sizeof(term[0]), p->cur->count, p->file);
 
       if (strcmp(cterm, term) == 0) {
         consume(p);
@@ -224,7 +222,7 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
     }
     consume(p);
   }
-  const char* str = getStrBetween(start, p->cur /* quote char */);
+  const char* str = getStrBetween(p, start, p->cur /* quote char */);
 
   consume(p);
   return str;
@@ -296,7 +294,7 @@ void jsonParseMembers(Parser *p, JObject *obj) {
 void jsonExpectPairSeparator(Parser *p) {
   consumeWhitespace(p);
   if (p->cur->type == COLON) {
-    p->cur = next(p->cur);
+    p->cur = next(p->cur, p);
   } else {
     Tok *tok = p->cur;
     fprintf(stderr, "Unexpected token: %s at ln %d cl %d\n", strTokType(tok),
@@ -404,11 +402,11 @@ JValue *jsonParseNumber(Parser *p) {
   double value = 0;
   char signValue = '+';
   if (p->cur->type == PLUS_MINUS) {
-    signValue = getCharAt(p->cur, 0);
+    signValue = getCharAt(p, 0);
     consume(p);
   }
   if (p->cur->type == DIGIT) {
-    value = getCharAt(p->cur, 0) - '0';
+    value = getCharAt(p, 0) - '0';
     value *= (signValue == '-') ? -1 : 1;
     consume(p);
 
@@ -416,7 +414,7 @@ JValue *jsonParseNumber(Parser *p) {
       do {
         for (int i = 0; i < p->cur->count; ++i) {
           value *= 10;
-          value += (getCharAt(p->cur, i) - '0');
+          value += (getCharAt(p, i) - '0');
         }
         consume(p);
       } while (p->cur->type == DIGIT);
@@ -426,13 +424,13 @@ JValue *jsonParseNumber(Parser *p) {
       consume(p);
       double divisor = 10;
       if (p->cur->type == DIGIT) {
-        value = (getCharAt(p->cur, 0) - '0') / divisor;
+        value = (getCharAt(p, 0) - '0') / divisor;
         consume(p);
         if (p->cur->type == DIGIT) {
           do {
             for (int i = 0; i < p->cur->count; ++i) {
               divisor *= 10;
-              value += (getCharAt(p->cur, i) - '0') / divisor;
+              value += (getCharAt(p, i) - '0') / divisor;
             }
             consume(p);
           } while (p->cur->type == DIGIT);
@@ -446,12 +444,12 @@ JValue *jsonParseNumber(Parser *p) {
     if (isTerm(p, "E") || isTerm(p, "e")) {
       char sign = '+';
       if (p->cur->type == PLUS_MINUS) {
-        sign = getCharAt(p->cur, 0);
+        sign = getCharAt(p, 0);
         consume(p);
       }
 
       if (p->cur->type == DIGIT) {
-        double power = (getCharAt(p->cur, 0) - '0');
+        double power = (getCharAt(p, 0) - '0');
         power *= (sign == '-' ? -1 : 1);
         consume(p);
 
@@ -459,7 +457,7 @@ JValue *jsonParseNumber(Parser *p) {
           do {
             for (int i = 0; i < p->cur->count; ++i) {
               power *= 10;
-              power += getCharAt(p->cur, i);
+              power += getCharAt(p, i);
             }
             consume(p);
           } while (p->cur->type == DIGIT);
@@ -664,12 +662,12 @@ JValue *jsonParseArray(Parser *p) {
 
 void consumeWhitespace(Parser *p) {
   while (p->cur->type == WHITESPACE) {
-    p->cur = next(p->cur);
+    p->cur = next(p->cur, p);
   }
 }
 
 void consume(Parser *p) {
-  p->cur = next(p->cur);
+  p->cur = next(p->cur, p);
 }
 
 JValue *jsonParse(const char *filename) {
@@ -678,10 +676,14 @@ JValue *jsonParse(const char *filename) {
 }
 
 JValue *jsonParseF(FILE *file) {
+  if(!file) {
+    return 0;
+  }
   Parser p;
+  p.file = file;
   p.error = 0;
   p.error_message = strdup("Unknown Error");
-  Tok *first = p.cur = ffirst(file);
+  Tok *first = p.first = p.cur = ffirst(file);
   if (p.cur) {
     consumeWhitespace(&p);
     JValue *val = NULL;
@@ -711,7 +713,8 @@ JValue *jsonParseF(FILE *file) {
   return 0;
 }
 
-char getCharAt(Tok *tok, int index) {
+char getCharAt(Parser *p, int index) {
+  Tok *tok = p->cur;
   if(!tok) {
     return -1;
   }
@@ -720,12 +723,12 @@ char getCharAt(Tok *tok, int index) {
   if (seekPos > tok->seek + tok->count) {
     seekPos = tok->seek + tok->count;
   }
-  fseek(tok->file, seekPos, SEEK_SET);
-  fread(&buf, 1, 1, tok->file);
+  fseek(p->file, seekPos, SEEK_SET);
+  fread(&buf, 1, 1, p->file);
   return buf;
 }
 
-const char *getnStrBetween(Tok *start, Tok *end, int count) {
+const char *getnStrBetween(Parser *p, Tok *start, Tok *end, int count) {
   if (end == start) {
     return 0;
   }
@@ -736,16 +739,16 @@ const char *getnStrBetween(Tok *start, Tok *end, int count) {
   char *pos = buf + count;
   end = end->previous;
   while (start != end) {
-    fseek(end->file, end->seek, SEEK_SET);
+    fseek(p->file, end->seek, SEEK_SET);
     pos -= end->count;
-    fread(pos, end->count, 1, end->file);
+    fread(pos, end->count, 1, p->file);
     end = end->previous;
   }
 
   return buf;
 }
 
-const char *getStrBetween(Tok *start, Tok *end) {
+const char *getStrBetween(Parser * p, Tok *start, Tok *end) {
   if (start == end) {
     return 0;
   }
@@ -758,5 +761,13 @@ const char *getStrBetween(Tok *start, Tok *end) {
     cur = cur->previous;
   }
 
-  return getnStrBetween(start, end, totalCount);
+  return getnStrBetween(p, start, end, totalCount);
+}
+
+void jsonPrintParserInfo() {
+  printf("Parser struct size %d\n", (unsigned int)sizeof(Parser));
+  printf("Token struct size  %d\n", (unsigned int)sizeof(Tok));
+  printf("Value struct size  %d\n", (unsigned int)sizeof(JValue));
+  printf("Entry struct size  %d\n", (unsigned int)sizeof(JEntry));
+  printf("Object struct size %d\n", (unsigned int)sizeof(JObject));
 }

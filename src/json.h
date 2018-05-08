@@ -21,9 +21,9 @@
 #define VAL_NULL          15
 
 typedef struct JValue {
-  unsigned char value_type;
-  int   size;
-  void  *value;
+  unsigned char  value_type : 4;
+  unsigned short size;
+  void*          value;
 } JValue;
 
 typedef struct JEntry {
@@ -40,22 +40,6 @@ typedef struct JObject {
   unsigned short _maxProbes;
 } JObject;
 
-/**
- * We want to access JSON data as simply as we can.
- *
- * int val = jsonInt(jsonObject, "key.key.key");
- * float val = jsonFloat(jsonObject, "key.key.key");
- * double val = jsonDouble(jsonObject, "key.key.key");
- * char *val = jsonString(jsonObject, "key.key.key");
- * char val = jsonBool(jsonObject, "key.key.key");
- * int objects[] = jsonArray(jsonObject, "key.key.key");
- * int vals[] = jsonIntArray(jsonObject, "key.key.key");
- * float vals[] = jsonFoatArray(jsonObject, "key.key.key");
- * double vals[] = jsonDoubleArray(jsonObject, "key.key.key");
- * char **vals = jsonStringArray(jsonObject, "key.key.key");
- * jsonObject = jsonObject(jsonObject, "key.key.key");
- */
-
 // Building functions
 JObject* jsonAddVal(JObject *obj, const char *name, struct JValue *value);
 /* Convenience methods */
@@ -64,18 +48,18 @@ JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
 JObject* jsonAddString(JObject *pbj, const char *name, const char *value);
 
-JValue* jsonBoolValue(const char value);
-JValue* jsonStringValue(const char *value);
-JValue* jsonIntValue(const int value);
-JValue* jsonFloatValue(const float value);
-JValue* jsonDoubleValue(const double value);
-JValue* jsonUIntValue(const unsigned int value);
-JValue* jsonObjectValue(JObject *obj);
-JValue* jsonStringArrayValue(const char **strings);
-JValue* jsonIntArrayValue(int **vals);
-JValue* jsonFloatArrayValue(float **vals);
-JValue* jsonDoubleArrayValue(double **vals);
-JValue* jsonNullValue();
+JValue*  jsonBoolValue(const char value);
+JValue*  jsonStringValue(const char *value);
+JValue*  jsonIntValue(const int value);
+JValue*  jsonFloatValue(const float value);
+JValue*  jsonDoubleValue(const double value);
+JValue*  jsonUIntValue(const unsigned int value);
+JValue*  jsonObjectValue(JObject *obj);
+JValue*  jsonStringArrayValue(const char **strings);
+JValue*  jsonIntArrayValue(int **vals);
+JValue*  jsonFloatArrayValue(float **vals);
+JValue*  jsonDoubleArrayValue(double **vals);
+JValue*  jsonNullValue();
 
 JValue*       jsonParse(const char *filename);
 JValue*       jsonParseF(FILE *file);

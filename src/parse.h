@@ -27,16 +27,16 @@
 
 typedef unsigned char TokType;
 typedef struct Tok {
-  FILE *file;
   int   seek;
-  short count;
-  int   line;
-  int   column;
-  TokType type;
+  unsigned char  count;
+  unsigned short line;
+  unsigned short column;
+  TokType type : 4;
   struct Tok *previous;
 } Tok;
 
 typedef struct Parser {
+    FILE *file;
     Tok *cur;
     Tok *first;
     unsigned int error;
@@ -49,15 +49,15 @@ typedef struct Parser {
 TokType     tokType(const char c);
 Tok*        first(const char* filename);
 Tok*        ffirst(FILE *file);
-Tok*        next(Tok *last);
+Tok*        next(Tok *last, Parser *p);
 const char *strTokType(Tok *tok);
 void        printTok(Tok *tok);
 int         isTerm(Parser *p, const char *term);
 
 // forward declarations
-char        getCharAt(Tok *tok, int index);
-const char* getStrBetween(Tok *start, Tok *end);
-const char* getnStrBetween(Tok *start, Tok *end, int count);
+char        getCharAt(Parser *p, int index);
+const char* getStrBetween(Parser *p, Tok *start, Tok *end);
+const char* getnStrBetween(Parser *p, Tok *start, Tok *end, int count);
 
 void        jsonRewind(Parser *p, Tok *saved);
 void        jsonExpectPairSeparator(Parser *p);
@@ -75,6 +75,7 @@ JValue*     jsonParseBool(Parser *p);
 JValue*     jsonParseNumber(Parser *p);
 JValue*     jsonParseValue(Parser *startAt);
 
+void        jsonPrintParserInfo();
 void        consumeWhitespace(Parser *p);
 void        consume(Parser *p);
 
