@@ -80,3 +80,20 @@ TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
   jsonFree(jsonObjectValue(obj));
 }
 
+TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
+  char buf[80];
+  
+  JObject *expandable = jsonNewObject();
+  for(int i = 0; i < 100; ++i) {
+    sprintf(buf, "Key %d", i);
+    jsonAddInt(expandable, buf, i);
+  }
+  EXPECT_EQ(expandable->size, 100);
+  
+  for(int i = 0; i < 100; ++i) {
+    sprintf(buf, "Key %d", i);
+    EXPECT_EQ(jsonInt(expandable, buf), i);
+  }
+  jsonFree(jsonObjectValue(expandable));
+}
+

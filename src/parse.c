@@ -26,6 +26,20 @@
 #define UNEXPECTED_TOKEN(p)  jsonSetParserError(p, 43, "Unexpected Token", __FILE__, __LINE__);
 #define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character", __FILE__, __LINE__);
 
+void freeTokens(Parser *p, Tok *start) {
+  Tok *last = p->cur->previous;
+  while(last != 0 && last != start && last != p->first) {
+    Tok *toDel = last;
+    last = last->previous;
+    free(toDel);
+  }
+  
+  if(last != 0 && last != p->first) {
+    p->cur->previous = last->previous;
+    free(last);
+  }
+}
+
 void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg, const char *file, int ln) {
   p->error = errNo;
   p->error_tok = p->cur;
@@ -73,7 +87,6 @@ Tok *next(Tok *last) {
       return 0;
     }
     fseek(last->file, last->seek + last->count, SEEK_SET);
-    fflush(last->file);
     char buf = '\0';
     fread(&buf, 1, 1, last->file);
 
@@ -186,7 +199,6 @@ int isTerm(Parser *p, const char *cterm) {
       char term[p->cur->count + 1];
       memset(term, 0, p->cur->count + 1);
       fseek(p->cur->file, p->cur->seek, SEEK_SET);
-      fflush(p->cur->file);
       fread(term, sizeof(term[0]), p->cur->count, p->cur->file);
 
       if (strcmp(cterm, term) == 0) {
@@ -219,12 +231,14 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
 }
 
 JValue *jsonParseObject(Parser *p) {
+  
   if (p->cur->type == OPEN_BRACE) {
     consume(p);
   } else {
     UNEXPECTED_TOKEN(p)
     return 0;
   }
+  Tok *start = p->cur;
   JObject *obj = jsonNewObject();
   char haveComma = 0;
   do {
@@ -251,7 +265,10 @@ JValue *jsonParseObject(Parser *p) {
     return 0;
   }
 
+  freeTokens(p, start);
+  
   consume(p);
+  
 
   return jsonObjectValue(obj);
 }
@@ -592,6 +609,7 @@ JValue *jsonParseArray(Parser *p) {
   if (arrayVal->value_type == VAL_INT_ARRAY) {
     //convert to array of ints
     int *integers = malloc(sizeof(*integers) * count);
+    arrayVal->size = sizeof(*integers) * count;
     for (int i = 0; i < count; ++i) {
       int *num = (int*) arry[i]->value;
       integers[i] = *num;
@@ -601,6 +619,7 @@ JValue *jsonParseArray(Parser *p) {
   } else if (arrayVal->value_type == VAL_FLOAT_ARRAY) {
     //convert to array of floats
     float *floats = malloc(sizeof(*floats) * count);
+    arrayVal->size = sizeof(*floats) * count;
     for (int i = 0; i < count; ++i) {
       float *num = (float*) arry[i]->value;
       floats[i] = *num;
@@ -610,6 +629,7 @@ JValue *jsonParseArray(Parser *p) {
   } else if (arrayVal->value_type == VAL_DOUBLE_ARRAY) {
     //convert to array of doubles
     float *doubles = malloc(sizeof(*doubles) * count);
+    arrayVal->size = sizeof(*doubles) * count;
     for (int i = 0; i < count; ++i) {
       double *num = (double*) arry[i]->value;
       doubles[i] = *num;
@@ -618,6 +638,7 @@ JValue *jsonParseArray(Parser *p) {
     arrayVal->value = doubles;
   } else if (arrayVal->value_type == VAL_STRING_ARRAY) {
     char **strings = malloc(sizeof(*strings) * count);
+    arrayVal->size = sizeof(*strings) * count;
     for (int i = 0; i < count; ++i) {
       char *string = (char*) arry[i]->value;
       strings[i] = strdup(string);
@@ -625,7 +646,8 @@ JValue *jsonParseArray(Parser *p) {
     }
     arrayVal->value = strings;
   } else if (arrayVal->value_type == VAL_BOOL_ARRAY) {
-    char *bools = malloc(sizeof(bools[0]) * count);
+    char *bools = malloc(sizeof(char) * count);
+    arrayVal->size = sizeof(char) * count;
     for (int i = 0; i < count; ++i) {
       bools[i] = ((char*)arry[i]->value)[0];
       jsonFree(arry[i]);
@@ -681,11 +703,11 @@ JValue *jsonParseF(FILE *file) {
   }
 
   jsonRewind(&p, first);
-  free(first);
-  fclose(file);
   BAD_CHARACTER(&p)
   jsonPrintError(&p);
   free(p.error_message);
+  free(first);
+  fclose(file);
   return 0;
 }
 
@@ -699,7 +721,6 @@ char getCharAt(Tok *tok, int index) {
     seekPos = tok->seek + tok->count;
   }
   fseek(tok->file, seekPos, SEEK_SET);
-  fflush(tok->file);
   fread(&buf, 1, 1, tok->file);
   return buf;
 }

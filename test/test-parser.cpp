@@ -34,6 +34,7 @@ TEST(JsonParserWorks, shouldParseBoolArray) {
   JObject *obj = (JObject*)val->value;
   char *bools = jsonBoolArray(obj, "parsesBoolArray");
   EXPECT_EQ(bools[0], 1);
+  EXPECT_EQ(bools[1], 0);
   jsonFree(val);
   free(bools);
   free(deleteMe);

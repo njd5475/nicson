@@ -57,8 +57,8 @@ JEntry* insertInto(JEntry *entry, JObject *obj) {
     // adjust hash key and keep going
     index = (entry->hash + (entry->probes - 1)) % obj->_arraySize;
 
-    if (entry->probes >= obj->_maxProbes) {
-      return entry;
+    if (entry->probes > obj->_maxProbes) {
+      obj->_maxProbes = entry->probes;
     }
   }
   obj->entries[index] = entry;
@@ -79,9 +79,8 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   entry->hash = fnvstr(entry->name);
   entry = insertInto(entry, obj);
 
-  if (entry) {
+  if (entry || obj->size == obj->_arraySize) {
     //now determine to expand the entry array
-    printf("Reached the max probes amount!\n");
     JEntry **oldEntries = obj->entries;
     int oldCount = obj->_arraySize;
     obj->_arraySize += DEFAULT_INC_AMOUNT;
@@ -90,14 +89,16 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
     memset(obj->entries, 0, sizeof(obj->entries[0]) * obj->_arraySize);
     for (int i = 0; i < oldCount; ++i) {
       if (oldEntries[i]) {
-        oldEntries[i]->probes = 0;
-        insertInto(oldEntries[i], obj);
+        oldEntries[i]->probes = 1;
+        if (insertInto(oldEntries[i], obj) != 0) {
+          printf("Our new size did not spread the keys enough\n");
+        }
       }
     }
-    entry->probes = 0;
-    insertInto(entry, obj);
-    printf("Rebuilding hash table from %d to %d for %d elements!\n", oldCount,
-        obj->_arraySize, obj->size);
+    if (entry) {
+      entry->probes = 0;
+      insertInto(entry, obj);
+    }
     free(oldEntries);
   }
 
@@ -124,22 +125,21 @@ JValue* _jsonGetObjVal(const JObject *obj, const char* keys) {
   int keyhash = fnvstr(keys);
   int index = keyhash % obj->_arraySize;
 
-  while (obj->entries[index] != 0 && obj->entries[index]->hash != keyhash) {
-    printf("We looked and did not find the key\n");
+  int probes = -1;
+  do {
     // not found, keep probing
-    index = (++keyhash) % obj->_arraySize;
-  }
+    ++probes;
+    index = (keyhash + probes) % obj->_arraySize;
+    if (obj->entries[index] != 0 && obj->entries[index]->hash == keyhash) {
+      return obj->entries[index]->value;
+    }
+  } while (probes < obj->_maxProbes);
 
-  if (obj->entries[index]) {
-    return obj->entries[index]->value;
-  }
-
-  printf("Did not find key %s\n", keys);
   return 0;
 }
 
 JValue* jsonGet(const JObject *obj, const char* keys) {
-  if (obj == 0 || !keys) {
+  if (obj == 0 || keys == NULL) {
     return 0;
   }
 
@@ -149,7 +149,6 @@ JValue* jsonGet(const JObject *obj, const char* keys) {
   int index = 0;
   do {
     key = nextKey(keys, &index);
-    printf("Looking for key %s\n", key);
     jval = _jsonGetObjVal(found, key);
     if (jval && jval->value_type == VAL_OBJ) {
       found = (JObject*) jval->value;
@@ -196,6 +195,7 @@ char *last(const char *keys) {
   }
 
   char *newkeys = malloc((end - lastDot) + 1);
+  memset(newkeys, 0, (end - lastDot) + 1);
   strncpy(newkeys, lastDot, end - lastDot);
   return newkeys;
 }
@@ -216,6 +216,7 @@ char *allButLast(const char *keys) {
   }
 
   char *newkeys = malloc((last - keys) + 1);
+  memset(newkeys, 0, (last - keys) + 1);
   strncpy(newkeys, keys, last - keys);
   return newkeys;
 }
@@ -409,7 +410,7 @@ char jsonBool(const JObject* obj, const char* keys) {
 char* jsonBoolArray(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if (val && val->value_type == VAL_BOOL_ARRAY) {
-    if (val->size > 0) {
+    if (val->size > 0 && val->value) {
       char *ret = malloc(sizeof(ret[0]) * val->size);
       memcpy(ret, val->value, val->size);
       return ret;

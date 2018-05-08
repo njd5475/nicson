@@ -47,6 +47,8 @@
                                 								
                                 <option id="gnu.cpp.compiler.exe.debug.option.debugging.level.2019549412" name="Debug Level" superClass="gnu.cpp.compiler.exe.debug.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.max" valueType="enumerated"/>
                                 								
+                                <option id="gnu.cpp.compiler.option.debugging.gprof.370411339" name="Generate gprof information (-pg)" superClass="gnu.cpp.compiler.option.debugging.gprof" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+                                								
                                 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.2001229941" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
                                 							
                             </tool>
@@ -56,6 +58,14 @@
                                 <option defaultValue="gnu.c.optimization.level.none" id="gnu.c.compiler.exe.debug.option.optimization.level.179185971" name="Optimization Level" superClass="gnu.c.compiler.exe.debug.option.optimization.level" useByScannerDiscovery="false" valueType="enumerated"/>
                                 								
                                 <option id="gnu.c.compiler.exe.debug.option.debugging.level.2115377975" name="Debug Level" superClass="gnu.c.compiler.exe.debug.option.debugging.level" useByScannerDiscovery="false" value="gnu.c.debugging.level.max" valueType="enumerated"/>
+                                								
+                                <option id="gnu.c.compiler.option.debugging.gprof.103217610" name="Generate gprof information (-pg)" superClass="gnu.c.compiler.option.debugging.gprof" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+                                								
+                                <option id="gnu.c.compiler.option.debugging.other.1549860953" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false" value="-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free" valueType="string"/>
+                                								
+                                <option id="gnu.c.compiler.option.debugging.prof.213274500" name="Generate prof information (-p)" superClass="gnu.c.compiler.option.debugging.prof" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+                                								
+                                <option id="gnu.c.compiler.option.debugging.codecov.684811761" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.c.compiler.option.debugging.codecov" useByScannerDiscovery="false" value="false" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1667711978" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
@@ -74,6 +84,16 @@
                             </tool>
                             							
                             <tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.1838548008" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
+                                								
+                                <option id="gnu.cpp.link.option.debugging.gprof.1509559881" name="Generate gprof information (-pg)" superClass="gnu.cpp.link.option.debugging.gprof" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+                                								
+                                <option id="gnu.cpp.link.option.libs.123058548" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" useByScannerDiscovery="false" valueType="libs">
+                                    									
+                                    <listOptionValue builtIn="false" value="tcmalloc"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="profiler"/>
+                                    								
+                                </option>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1551686755" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
                                     									
@@ -271,9 +291,11 @@
                                 								
                                 <option id="gnu.cpp.compiler.option.debugging.codecov.852567349" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.cpp.compiler.option.debugging.codecov" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
-                                <option id="gnu.cpp.compiler.option.dialect.std.1934354313" superClass="gnu.cpp.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
+                                <option id="gnu.cpp.compiler.option.dialect.std.1934354313" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
                                 								
-                                <option id="gnu.cpp.compiler.option.other.other.1252188083" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fpermissive" valueType="string"/>
+                                <option id="gnu.cpp.compiler.option.other.other.1252188083" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-c -fmessage-length=0 -fpermissive" valueType="string"/>
+                                								
+                                <option id="gnu.cpp.compiler.option.debugging.gprof.1626902992" name="Generate gprof information (-pg)" superClass="gnu.cpp.compiler.option.debugging.gprof" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1147310460" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
                                 							
@@ -295,6 +317,8 @@
                                 								
                                 <option id="gnu.c.compiler.option.debugging.codecov.936742153" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.c.compiler.option.debugging.codecov" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
+                                <option id="gnu.c.compiler.option.debugging.other.990293578" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false" value="" valueType="string"/>
+                                								
                                 <inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1439565447" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
                                 							
                             </tool>
@@ -313,9 +337,9 @@
                             							
                             <tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.967155340" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
                                 								
-                                <option id="gnu.cpp.link.option.paths.806677311" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths"/>
+                                <option id="gnu.cpp.link.option.paths.806677311" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" useByScannerDiscovery="false"/>
                                 								
-                                <option id="gnu.cpp.link.option.libs.117742187" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
+                                <option id="gnu.cpp.link.option.libs.117742187" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" useByScannerDiscovery="false" valueType="libs">
                                     									
                                     <listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pthread"/>
                                     									
@@ -323,7 +347,9 @@
                                     								
                                 </option>
                                 								
-                                <option id="gnu.cpp.link.option.debugging.codecov.1432542955" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.cpp.link.option.debugging.codecov" value="true" valueType="boolean"/>
+                                <option id="gnu.cpp.link.option.debugging.codecov.1432542955" name="Generate gcov information (-ftest-coverage -fprofile-arcs)" superClass="gnu.cpp.link.option.debugging.codecov" useByScannerDiscovery="false" value="true" valueType="boolean"/>
+                                								
+                                <option id="gnu.cpp.link.option.debugging.gprof.1799415898" name="Generate gprof information (-pg)" superClass="gnu.cpp.link.option.debugging.gprof" useByScannerDiscovery="false" value="true" valueType="boolean"/>
                                 								
                                 <inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.275841120" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
                                     									

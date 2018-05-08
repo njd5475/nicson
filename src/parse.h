@@ -38,6 +38,7 @@ typedef struct Tok {
 
 typedef struct Parser {
     Tok *cur;
+    Tok *first;
     unsigned int error;
     Tok *error_tok;
     char* error_message;
