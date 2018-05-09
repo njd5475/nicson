@@ -27,6 +27,9 @@
 #define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character", __FILE__, __LINE__);
 
 void freeTokens(Parser *p, Tok *start) {
+  if(p->eof || p->error) {
+    return;
+  }
   Tok *last = p->cur->previous;
   while(last != 0 && last != start && last != p->first) {
     Tok *toDel = last;
@@ -53,9 +56,13 @@ void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg, const ch
 
 void jsonPrintError(Parser *p) {
   fflush(stdout);
-  fprintf(stderr, "Parse error %s(%d): %s, for %s, at ln %d, col %d\n", p->error_in_file, p->error_on_line,
+  if(p->error_tok) {
+    fprintf(stderr, "Parse error %s(%d): %s, for %s, at ln %d, col %d\n", p->error_in_file, p->error_on_line,
       p->error_message, strTokType(p->error_tok), p->error_tok->line,
       p->error_tok->column);
+  }else{
+    fprintf(stderr, "Parse error: Unexpected end of file!\n");
+  }
 }
 
 Tok *ffirst(Parser *p) {
@@ -73,15 +80,24 @@ Tok *ffirst(Parser *p) {
 
 Tok *next(Tok *last, Parser *p) {
   if (last) {
-    if (feof(p->file)) {
+    if (p->eof) {
       return 0;
     }
     char buf = '\0';
 
     jsonRead(&buf, p, last->seek + last->count, 1);
 
-    if (last->type == tokType(buf) && last->type == OTHER) {
+    if(!buf) {
+      p->eof = 1;
+      return 0;
+    }
+    
+    if (last->type == tokType(buf) && (last->type == OTHER || last->type == WHITESPACE)) {
       last->count++;
+      if(buf == '\n') {
+        last->line++;
+        last->column = 0;
+      }
       return last;
     } else {
       Tok *next = (Tok*) malloc(sizeof(Tok));
@@ -174,12 +190,18 @@ void printTok(Tok *tok) {
 }
 
 int isTerm(Parser *p, const char *cterm) {
-
+  if(!p->cur) {
+    return 0;
+  }
+  
   if (p->cur->type == OTHER) {
 
     Tok *start = p->cur;
-    while(p->cur->type == OTHER) {
+    while(p->cur && p->cur->type == OTHER) {
       consume(p);
+    }
+    if(!p->cur) {
+      return 0;
     }
     jsonRewind(p, start);
     
@@ -235,11 +257,14 @@ JValue *jsonParseObject(Parser *p) {
       haveComma = 0;
     }
     consumeWhitespace(p);
+    if(p->error || p->eof) {
+      break;
+    }
     if (p->cur->type == CLOSE_BRACE) {
       break;
     }
     jsonParseMembers(p, obj);
-    if (p->error) {
+    if (p->error || p->eof) {
       break;
     }
     consumeWhitespace(p);
@@ -284,7 +309,7 @@ void jsonParseMembers(Parser *p, JObject *obj) {
 void jsonExpectPairSeparator(Parser *p) {
   consumeWhitespace(p);
   if (p->cur->type == COLON) {
-    p->cur = next(p->cur, p);
+    consume(p);
   } else {
     Tok *tok = p->cur;
     fprintf(stderr, "Unexpected token: %s at ln %d cl %d\n", strTokType(tok),
@@ -651,6 +676,10 @@ JValue *jsonParseArray(Parser *p) {
 }
 
 void consumeWhitespace(Parser *p) {
+  if(!p->cur) {
+    return;
+  }
+  
   while (p->cur->type == WHITESPACE) {
     p->cur = next(p->cur, p);
   }
@@ -670,17 +699,19 @@ JValue *jsonParseF(FILE *file) {
     return 0;
   }
   Parser p;
+  p.eof = 0;
   p.file = file;
+  p.buf_seek = -1;
   p.error = 0;
   p.error_message = strdup("Unknown Error");
   Tok *first = p.first = p.cur = ffirst(&p);
   if (p.cur) {
     consumeWhitespace(&p);
     JValue *val = NULL;
-    if (p.cur->type == OPEN_BRACKET) {
-      val = jsonParseArray(&p);
-    } else if (p.cur->type == OPEN_BRACE) {
+    if (p.cur->type == OPEN_BRACE) {
       val = jsonParseObject(&p);
+    } else if (p.cur->type == OPEN_BRACKET) {
+      val = jsonParseArray(&p);
     }
 
     if (val && !p.error) {
@@ -761,6 +792,25 @@ void jsonPrintParserInfo() {
 }
 
 void jsonRead(char *buf, Parser *p, int seek, int count) {
-  fseek(p->file, seek, SEEK_SET);
-  fread(buf, sizeof(buf[0]), count, p->file);
+  if(seek+count > p->buf_seek+TOK_BUF_SIZE || p->buf_seek < 0) {
+    if(p->buf_seek < 0) {
+      p->buf_seek = 0;
+    }
+    p->buf_seek = seek;
+    memset(p->buf, 0, TOK_BUF_SIZE*sizeof(buf[0]));
+    fseek(p->file, p->buf_seek, SEEK_SET);
+    fread(p->buf, sizeof(buf[0]), TOK_BUF_SIZE*sizeof(buf[0]), p->file);
+  }else if(seek+count < p->buf_seek && p->buf_seek > 0) {
+    p->buf_seek = (seek / TOK_BUF_SIZE) * TOK_BUF_SIZE;
+    memset(p->buf, 0, TOK_BUF_SIZE*sizeof(buf[0]));
+    fseek(p->file, p->buf_seek, SEEK_SET);
+    fread(p->buf, sizeof(buf[0]), TOK_BUF_SIZE*sizeof(buf[0]), p->file);
+  }else if(seek < p->buf_seek && seek+count >= p->buf_seek && p->buf_seek > 0) {
+    p->buf_seek = seek - TOK_BUF_SIZE/2;
+    memset(p->buf, 0, TOK_BUF_SIZE*sizeof(buf[0]));
+    fseek(p->file, p->buf_seek, SEEK_SET);
+    fread(p->buf, sizeof(buf[0]), TOK_BUF_SIZE*sizeof(buf[0]), p->file);
+  }
+  char *pbuf = p->buf;
+  memcpy(buf, pbuf+(seek-p->buf_seek), count);
 }

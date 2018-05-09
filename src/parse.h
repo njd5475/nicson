@@ -35,6 +35,10 @@ typedef struct Tok {
   struct Tok *previous;
 } Tok;
 
+#ifndef TOK_BUF_SIZE
+#define TOK_BUF_SIZE 8192
+#endif
+
 typedef struct Parser {
     FILE *file;
     Tok *cur;
@@ -45,7 +49,8 @@ typedef struct Parser {
     const char* error_in_file;
     int error_on_line;
     int buf_seek;
-    char buf[1024];
+    char buf[TOK_BUF_SIZE];
+    char eof : 1;
 } Parser;
 
 TokType     tokType(const char c);

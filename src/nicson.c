@@ -22,12 +22,20 @@ int main(int count, const char**argv) {
 	JValue *val = jsonParse(argv[1]);
 
 	if(!val) {
+	  fprintf(stderr, "Error Parsing file!\n");
 	  exit(0);
 	}
 	
 	if(count >= 3) {
 	  JObject *obj = (JObject*)val->value;
-	  printf("%s: %d\n", argv[2], jsonInt(obj, argv[2]));
+	  val = jsonGet(obj, argv[2]);
+	  if(val->value_type == VAL_INT) {
+	    printf("%s: %d\n", argv[2], jsonInt(obj, argv[2]));
+	  }else if(val->value_type == VAL_STRING) {
+	    printf("%s: %s\n", argv[2], jsonString(obj, argv[2]));
+	  }else{
+	    fprintf(stderr, "Error: Could not find key '%s'\n", argv[2]);
+	  }
 	}
 	
 	jsonFree(val);
