@@ -228,3 +228,14 @@ TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
   jsonFree(val);
   free(deleteMe);
 }
+
+TEST (JsonParserWorks, shouldParseEscapedSequences) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"obj\":\"\\u0002\"}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  ASSERT_TRUE(val != NULL);
+  EXPECT_EQ(VAL_OBJ, val->value_type);
+  EXPECT_STREQ("\\u0002", jsonString((JObject*)val->value,"obj"));
+  jsonFree(val);
+  free(deleteMe);
+}
