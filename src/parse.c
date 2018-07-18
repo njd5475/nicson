@@ -234,7 +234,11 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
       consume(p);
       consume(p);
     }
-    consume(p);
+    if(p->cur->type != quoteType) {
+      consume(p);
+    }else{
+      break;
+    }
   }
   const char* str = getStrBetween(p, start, p->cur /* quote char */);
 
