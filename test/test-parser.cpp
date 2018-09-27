@@ -250,3 +250,4 @@ TEST (JsonParserWorks, shouldParseEscapedQuotes) {
   jsonFree(val);
   free(deleteMe);
 }
+

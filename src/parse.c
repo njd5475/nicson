@@ -120,6 +120,36 @@ Tok *next(Tok *last, Parser *p) {
   return 0;
 }
 
+void prev(Parser *p, Tok *prev, Tok *cur) {
+	if(cur->count > 1) {
+		cur->count--;
+		cur->column--;
+		if(cur->column < 0) {
+			cur->line--;
+		}
+		*prev = *cur;
+	}else{
+		char buf = '\0';
+
+		jsonRead(&buf, p, cur->seek -1, 1);
+
+		if(!buf) {
+		  p->eof = 1;
+		  return;
+		}
+		prev->seek = cur->seek - 1;
+	  prev->count = 1;
+	  if(buf == '\n' || cur->column == 0) {
+	    prev->line = cur->line - 1;
+	    prev->column = 0;
+	  } else {
+	    prev->line = cur->line;
+	    prev->column = cur->column - 1;
+	  }
+	  prev->type = tokType(buf);
+	}
+}
+
 TokType tokType(const char c) {
   if(c == '{') {
     return OPEN_BRACE;
@@ -226,9 +256,9 @@ int isTerm(Parser *p, const char *cterm) {
 }
 
 const char* jsonParseQuotedString(Parser* p, char quote) {
-  Tok *start = p->cur;
   TokType quoteType = tokType(quote);
   consume(p);
+  Tok *start = p->cur;
   while(p->cur->type != quoteType) {
     if(p->cur->type == BACK_SLASH) {
       consume(p);
@@ -240,7 +270,10 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
       break;
     }
   }
-  const char* str = getStrBetween(p, start, p->cur /* quote char */);
+  int size = (p->cur->seek-start->seek);
+  char* str = malloc(sizeof(char) * size+1);
+  memset(str, 0, size+1);
+  jsonRead(str, p, start->seek, size);
 
   consume(p);
   return str;
@@ -754,41 +787,6 @@ char getCharAt(Parser *p, int index) {
   }
   jsonRead(&buf, p, seekPos, 1);
   return buf;
-}
-
-const char *getnStrBetween(Parser *p, Tok *start, Tok *end, int count) {
-  if(end == start) {
-    return 0;
-  }
-
-  int size = sizeof(char) * (count + 1);
-  char *buf = (char*) malloc(size);
-  memset(buf, 0, size);
-  char *pos = buf + count;
-  end = end->previous;
-  while(start != end) {
-    pos -= end->count;
-    jsonRead(pos, p, end->seek, end->count);
-    end = end->previous;
-  }
-
-  return buf;
-}
-
-const char *getStrBetween(Parser * p, Tok *start, Tok *end) {
-  if(start == end) {
-    return 0;
-  }
-
-  int totalCount = 0;
-  Tok *cur = end;
-  cur = cur->previous;
-  while(start != cur) {
-    totalCount += cur->count;
-    cur = cur->previous;
-  }
-
-  return getnStrBetween(p, start, end, totalCount);
 }
 
 void jsonPrintParserInfo() {
