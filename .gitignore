@@ -1,5 +1,8 @@
-Release/
-Debug/
-Tests/
 .settings
+.cproject
+gmon.out
+*.o
+*.d
+*.gcda
+*.gcno
 
