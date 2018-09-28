@@ -113,7 +113,7 @@ Tok *next(Tok *last, Parser *p) {
         next->column = last->column + last->count;
       }
       next->type = tokType(buf);
-      next->previous = last;
+      //next->previous = last;
       return next;
     }
   }
