@@ -65,7 +65,7 @@ char        getCharAt(Parser *p, int index);
 const char* getStrBetween(Parser *p, Tok *start, Tok *end);
 const char* getnStrBetween(Parser *p, Tok *start, Tok *end, int count);
 
-void        jsonRewind(Parser *p, Tok *saved);
+void        jsonRewind(Parser *p, int saved);
 void        jsonExpectPairSeparator(Parser *p);
 void        jsonRead(char *buf, Parser *p, int seek, int count);
 

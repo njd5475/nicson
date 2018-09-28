@@ -228,14 +228,14 @@ int isTerm(Parser *p, const char *cterm) {
 
   if(p->cur->type == OTHER) {
 
-    Tok *start = p->cur;
+    int startPos = p->cur->seek;
     while(p->cur && p->cur->type == OTHER) {
       consume(p);
     }
     if(!p->cur) {
       return 0;
     }
-    jsonRewind(p, start);
+    jsonRewind(p, startPos);
 
     int cterm_len = strlen(cterm);
     if(cterm_len == p->cur->count) {
@@ -248,7 +248,7 @@ int isTerm(Parser *p, const char *cterm) {
         return 1;
       }
 
-      jsonRewind(p, start);
+      jsonRewind(p, startPos);
     }
   }
 
@@ -358,7 +358,7 @@ void jsonExpectPairSeparator(Parser *p) {
 }
 
 JValue *jsonParseValue(Parser *p) {
-  Tok *saved = p->cur;
+  int saved = p->cur->seek;
   JValue *val = jsonParseString(p);
   if(val && p->error == 0) {
     return val;
@@ -542,11 +542,9 @@ JValue *jsonParseNumber(Parser *p) {
   return 0;
 }
 
-void jsonRewind(Parser *p, Tok *saved) {
-  while(p->cur && p->cur != saved) {
-    Tok *deletable = p->cur;
-    p->cur = p->cur->previous;
-    free(deletable);
+void jsonRewind(Parser *p, int saved) {
+  while(p->cur && p->cur->seek != saved) {
+    prev(p, p->cur, p->cur);
   }
 
   if(p->cur == NULL) {
@@ -757,7 +755,7 @@ JValue *jsonParseF(FILE *file) {
 
     if(val && !p.error) {
       free(p.error_message);
-      jsonRewind(&p, first);
+      //jsonRewind(&p, first);
       free(first);
       fclose(file);
       return val;
@@ -766,7 +764,7 @@ JValue *jsonParseF(FILE *file) {
     }
   }
 
-  jsonRewind(&p, first);
+  //jsonRewind(&p, first);
   BAD_CHARACTER(&p)
   jsonPrintError(&p);
   free(p.error_message);
