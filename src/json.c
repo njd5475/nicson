@@ -4,8 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEFAULT_HASH_SIZE   50
-#define DEFAULT_INC_AMOUNT  50
+#define DEFAULT_HASH_SIZE   5
+#define DEFAULT_INC_AMOUNT  10
+
+JObject *stringCache = NULL;
+
+int jsonGetEntryIndex(const JObject *obj, const char* keys);
 
 char *nextKey(const char *keys, int *last) {
   if (!keys || !last) {
@@ -67,6 +71,20 @@ JEntry* insertInto(JEntry *entry, JObject *obj) {
   return 0;
 }
 
+JObject* jsonDeleteKey(JObject *obj, const char *key) {
+  int index = jsonGetEntryIndex(obj, key);
+  if(index > -1) {
+    JEntry *toDel = obj->entries[index];
+    obj->entries[index] = 0;
+    free(toDel->name);
+    jsonFree(toDel->value);
+    free(toDel);
+    return obj;
+  }
+  obj->size--;
+  return 0;
+}
+
 JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   if (!obj) {
     obj = jsonNewObject();
@@ -85,8 +103,8 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
     int oldCount = obj->_arraySize;
     obj->_arraySize += DEFAULT_INC_AMOUNT;
     obj->size = 0;
-    obj->entries = malloc(sizeof(obj->entries[0]) * obj->_arraySize);
-    memset(obj->entries, 0, sizeof(obj->entries[0]) * obj->_arraySize);
+    obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
+    memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
     for (int i = 0; i < oldCount; ++i) {
       if (oldEntries[i]) {
         oldEntries[i]->probes = 1;
@@ -142,6 +160,23 @@ JValue* _jsonGetObjVal(const JObject *obj, const char* keys) {
   return 0;
 }
 
+int jsonGetEntryIndex(const JObject *obj, const char* keys) {
+  int keyhash = fnvstr(keys);
+  int index = keyhash % obj->_arraySize;
+
+  int probes = -1;
+  do {
+    // not found, keep probing
+    ++probes;
+    index = (keyhash + probes) % obj->_arraySize;
+    if (obj->entries[index] != 0 && obj->entries[index]->hash == keyhash) {
+      return index;
+    }
+  } while (probes < obj->_maxProbes);
+
+  return -1;
+}
+
 JValue* jsonGet(const JObject *obj, const char* keys) {
   if (obj == 0 || keys == NULL) {
     return 0;
@@ -160,7 +195,7 @@ JValue* jsonGet(const JObject *obj, const char* keys) {
       if (jval) {
         printf("Err: Key %s was the wrong type.\n", keys);
       } else {
-        printf("Err: Object did not contains a next object %s\n", keys);
+        printf("Err: Object did not contain a next object %s\n", keys);
       }
       if (key) {
         free(key);
@@ -289,12 +324,10 @@ JValue* jsonObjectValue(JObject *obj) {
   return val;
 }
 
+JValue null = {VAL_NULL,0,0};
+
 JValue* jsonNullValue() {
-  JValue *val = malloc(sizeof(JValue));
-  val->value_type = VAL_NULL;
-  val->size = 0;
-  val->value = 0;
-  return val;
+  return &null;
 }
 
 JValue* jsonStringArrayValue(const char **strings) {
@@ -324,8 +357,8 @@ JObject *jsonNewObject() {
   obj->_arraySize = DEFAULT_HASH_SIZE;
   obj->_maxProbes = obj->_arraySize / 5;
   obj->size = 0;
-  obj->entries = malloc(sizeof(obj->entries[0]) * obj->_arraySize);
-  memset(obj->entries, 0, sizeof(obj->entries[0]) * obj->_arraySize);
+  obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
+  memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
   return obj;
 }
 
@@ -502,9 +535,9 @@ void jsonFree(JValue *val) {
       }
     }
     free(obj->entries);
-  } else if (vtype == VAL_MIXED_ARRAY) {
+  } else if (vtype == VAL_MIXED_ARRAY || vtype == VAL_OBJ_ARRAY) {
     JValue **values = val->value;
-    int count = val->size / sizeof(*values);
+    int count = val->size / sizeof(JValue*);
     for (int i = 0; i < count; ++i) {
       jsonFree(values[i]);
     }
@@ -516,8 +549,10 @@ void jsonFree(JValue *val) {
     }
   }
 
-  if(vtype != VAL_INT) {
+  if(vtype != VAL_INT && vtype != VAL_NULL) {
     free(val->value);
   }
-  free(val);
+  if(vtype != VAL_NULL) {
+    free(val);
+  }
 }

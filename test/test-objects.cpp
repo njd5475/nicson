@@ -55,8 +55,12 @@ TEST(JsonObjectManipulation, shouldGetStringOutOfObjectAsStored) {
   EXPECT_EQ(obj->size, 0);
 
   jsonAddStringDup(obj, "status", "Success");
+  jsonAddStringDup(obj, "hello", "it's hello");
+  jsonAddStringDup(obj, "message", "it's message");
   const char* out = jsonString(obj, "status");
   EXPECT_STREQ(out, "Success");
+  EXPECT_STREQ(jsonString(obj, "hello"), "it's hello");
+  EXPECT_STREQ(jsonString(obj, "message"), "it's message");
   jsonFree(jsonObjectValue(obj));
 }
 

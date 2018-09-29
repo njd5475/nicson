@@ -22,7 +22,7 @@
 
 typedef struct JValue {
   unsigned char  value_type : 4;
-  unsigned short size;
+  unsigned int   size;
   void*          value;
 } JValue;
 
@@ -40,6 +40,9 @@ typedef struct JObject {
   unsigned short _maxProbes;
 } JObject;
 
+
+extern JObject *stringCache;
+
 // Building functions
 JObject* jsonAddVal(JObject *obj, const char *name, struct JValue *value);
 /* Convenience methods */
@@ -47,7 +50,8 @@ JObject* jsonAddObj(JObject *obj, const char *name, JObject *value);
 JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
 JObject* jsonAddStringDup(JObject *pbj, const char *name, const char *value);
-JObject* jsonAddString(JObject *pbj, const char *name, const char *value);
+JObject* jsonAddString(JObject *obj, const char *name, const char *value);
+JObject* jsonDeleteKey(JObject *obj, const char *key);
 
 JValue*  jsonBoolValue(const char value);
 

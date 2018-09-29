@@ -227,7 +227,7 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
     }
   }
   int size = (p->cur->seek-start);
-  char* str = malloc(sizeof(char) * size+1);
+  char *str = malloc(sizeof(char)*size+1);
   memset(str, 0, size+1);
   jsonRead(str, p, start, size);
 
@@ -291,7 +291,6 @@ void jsonParseMembers(Parser *p, JObject *obj) {
       jsonAddVal(obj, key, val);
     }
   } else {
-    free((void*) key);
     jsonPrintError(p);
   }
 }
@@ -311,35 +310,37 @@ void jsonExpectPairSeparator(Parser *p) {
 
 JValue *jsonParseValue(Parser *p) {
   int saved = p->cur->seek;
+
   JValue *val = jsonParseString(p);
   if(val && p->error == 0) {
     return val;
   }
   jsonRewind(p, saved);
 
-  val = jsonParseObject(p);
+  if(p->cur->type == OPEN_BRACE) {
+    val = jsonParseObject(p);
 
-  if(val && !p->error) {
-    return val;
+    if(val && !p->error) {
+      return val;
+    }
+
+    if(val) {
+      jsonFree(val);
+    }
+
+    jsonRewind(p, saved);
+  }else if(p->cur->type == OPEN_BRACKET) {
+    val = jsonParseArray(p);
+
+    if(val && !p->error) {
+      return val;
+    }
+
+    if(val) {
+      jsonFree(val);
+    }
+    jsonRewind(p, saved);
   }
-
-  if(val) {
-    jsonFree(val);
-  }
-
-  jsonRewind(p, saved);
-
-  val = jsonParseArray(p);
-
-  if(val && !p->error) {
-    return val;
-  }
-
-  if(val) {
-    jsonFree(val);
-  }
-
-  jsonRewind(p, saved);
 
   val = jsonParseNumber(p);
 
@@ -603,8 +604,8 @@ JValue *jsonParseArray(Parser *p) {
     return arrayVal;
   }
 
-  JValue** arry = malloc(sizeof(*arry) * count);
-  arrayVal->size = sizeof(*arry) * count;
+  JValue** arry = malloc(sizeof(JValue*) * count);
+  arrayVal->size = sizeof(JValue*) * count;
   arrayVal->value = arry;
   curVal = 0;
   curVal = head;

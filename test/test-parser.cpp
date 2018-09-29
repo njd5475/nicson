@@ -178,11 +178,12 @@ TEST(JsonParserWorks, shouldEndAtEndOfStream) {
 
 TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("{\"message\":\"hello\"}", &deleteMe);
+  FILE *file = inlineJson("{\"message\":\"hello\", \"status\": \"started\"}", &deleteMe);
   JValue *val = jsonParseF(file);
   ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
-  EXPECT_STREQ(jsonString((JObject*)val->value, "message"), "hello");
+  const char* result = jsonString((JObject*)val->value, "message");
+  EXPECT_STREQ(result, "hello");
   jsonFree(val);
   free(deleteMe);
 }
@@ -288,11 +289,11 @@ TEST (JsonParserWorks, shouldParseNestedJsonObjects) {
 
 TEST (JsonParserWorks, shouldParseEscapedSequences) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("{\"obj\":\"\\u0002\"}", &deleteMe);
+  FILE *file = inlineJson("{\"obj7\":\"\\u0002\"}", &deleteMe);
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_OBJ, val->value_type);
-  EXPECT_STREQ("\\u0002", jsonString((JObject*)val->value,"obj"));
+  EXPECT_STREQ("\\u0002", jsonString((JObject*)val->value,"obj7"));
   jsonFree(val);
   free(deleteMe);
 }
@@ -311,7 +312,7 @@ TEST (JsonParserWorks, shouldParseEscapedQuotes) {
 
 TEST(JsonParserWorks, shouldFreeMixedArraysInsideNestedObjects) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("{\"obj\":{\"key\":[{\"hello\":\"whatsup\"},{\"hello\":\"whatsup\"},true,false,null,21345,1,1,1,1,0]}}", &deleteMe);
+  FILE *file = inlineJson("{\"obj3\":{\"key\":[{\"hello67\":\"whatsup\"},{\"hello8\":\"whatsup\"},true,false,null,21345,1,1,1,1,0]}}", &deleteMe);
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_OBJ, val->value_type);
