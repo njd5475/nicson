@@ -93,7 +93,7 @@ TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
   
   for(int i = 0; i < 100; ++i) {
     sprintf(buf, "Key %d", i);
-    EXPECT_EQ(jsonInt(expandable, strdup(buf)), i);
+    EXPECT_EQ(jsonInt(expandable, buf), i);
   }
   jsonFree(jsonObjectValue(expandable));
 }

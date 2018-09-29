@@ -494,7 +494,6 @@ void jsonFree(JValue *val) {
         toDel = obj->entries[i];
 
         valToDel = toDel->value;
-        vtype = valToDel->value_type;
 
         jsonFree((JValue*) valToDel);
 
