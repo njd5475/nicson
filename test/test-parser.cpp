@@ -16,10 +16,10 @@ FILE *inlineJson(const char *jstr, char **deleteThis) {
 TEST(JsonParserWorks, shouldGetNextToken) {
   char *deleteMe = NULL;
   Parser p;
-  p.eof = 0;
+  memset(&p, 0, sizeof(Parser));
+  p.cur = 0;
   p.file = inlineJson("{\"parsesNullValue\": null}", &deleteMe);
   p.buf_seek = -1;
-  p.error = 0;
   p.error_message = strdup("Unknown Error");
   p.cur = ffirst(&p);
 
@@ -28,25 +28,29 @@ TEST(JsonParserWorks, shouldGetNextToken) {
   ASSERT_EQ(p.cur->type, DOUBLE_QUOTE);
   next(&p);
   ASSERT_EQ(p.cur->count, 15);
-  char *term = getTerm(&p);
+  char *term = NULL;
+  term = getTerm(&p);
   ASSERT_STREQ(term, "parsesNullValue");
 
+  free(p.error_message);
+  free(p.cur);
   free(term);
   free(deleteMe);
+  fclose(p.file);
 }
 
 TEST(JsonParserWorks, shouldGetPreviousToken) {
   char *deleteMe = NULL;
   Parser p;
-  p.eof = 0;
+  memset(&p, 0, sizeof(p));
   p.file = inlineJson("parsesNullValue\": null}", &deleteMe);
   p.buf_seek = -1;
-  p.error = 0;
   p.error_message = strdup("Unknown Error");
   p.cur = ffirst(&p);
   int start = p.cur->seek;
   ASSERT_EQ(p.cur->count,15);
-  char *term = getTerm(&p);
+  char *term = NULL;
+  term = getTerm(&p);
   ASSERT_STREQ(term, "parsesNullValue");
   free(term);
   next(&p);
@@ -56,8 +60,11 @@ TEST(JsonParserWorks, shouldGetPreviousToken) {
   term = getTerm(&p);
   ASSERT_STREQ(term, "parsesNullValue");
 
+  free(p.error_message);
+  free(p.cur);
   free(term);
   free(deleteMe);
+  fclose(p.file);
 }
 
 TEST(JsonParserWorks, shouldParseNullvalue) {

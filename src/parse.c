@@ -55,6 +55,7 @@ void jsonPrintError(Parser *p) {
 
 Tok *ffirst(Parser *p) {
   Tok *tok = (Tok*) malloc(sizeof(Tok));
+  memset(tok, 0, sizeof(Tok));
   tok->seek = 0;
   tok->count = 0;
   tok->line = 1;
@@ -93,9 +94,10 @@ Tok *next(Parser *p) {
 }
 
 char *getTerm(Parser *p) {
-  Tok *t = p->cur;
+  Tok *t = NULL;
+  t = p->cur;
   char *toRet = malloc(sizeof(char)*t->count+1);
-  memset(toRet, 0, t->count);
+  memset(toRet, 0, t->count+1);
   jsonRead(toRet, p, t->seek, t->count);
   return toRet;
 }
