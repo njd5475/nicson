@@ -47,6 +47,7 @@ void jsonPrintError(Parser *p) {
     fprintf(stderr, "Parse error %s(%d): %s, for %s (%s), at ln %d, col %d\n",
         p->error_in_file, p->error_on_line, p->error_message,
         strTokType(p->error_tok), token, p->error_tok->line, p->error_tok->column);
+    free(token);
   } else {
     fprintf(stderr, "Parse error: Unexpected end of file!\n");
   }
@@ -55,20 +56,25 @@ void jsonPrintError(Parser *p) {
 Tok *ffirst(Parser *p) {
   Tok *tok = (Tok*) malloc(sizeof(Tok));
   tok->seek = 0;
-  tok->count = 1;
-  char ch;
-  jsonRead(&ch, p, 0, 1);
-  tok->type = tokType(ch);
+  tok->count = 0;
   tok->line = 1;
   tok->column = 0;
-  return tok;
+  p->cur = tok;
+  return next(p);
 }
 
 Tok *next(Parser *p) {
+  if(p->eof) {
+    return 0;
+  }
   p->cur->seek += p->cur->count; //advance the pointer
-  p->cur->count = 1;
+  p->cur->count = 0;
   char buf = '\0';
   jsonRead(&buf, p, p->cur->seek + p->cur->count, 1); //read one character
+  if(buf == '\0') {
+    p->eof = 1;
+    return 0;
+  }
   p->cur->type = tokType(buf);
   TokType nextType;
   do {
@@ -76,14 +82,22 @@ Tok *next(Parser *p) {
     p->cur->column++;
     jsonRead(&buf, p, p->cur->seek + p->cur->count, 1); //read one character
     nextType = tokType(buf);
-  }while(p->cur->type == nextType);
+  }while(p->cur->type == nextType && (p->cur->type == OTHER || p->cur->type == WHITESPACE || p->cur->type == NEWLINE));
 
-  if(nextType == NEWLINE) {
+  if(p->cur->type == NEWLINE) {
     p->cur->column = 0;
     p->cur->line++;
   }
 
   return p->cur;
+}
+
+char *getTerm(Parser *p) {
+  Tok *t = p->cur;
+  char *toRet = malloc(sizeof(char)*t->count+1);
+  memset(toRet, 0, t->count);
+  jsonRead(toRet, p, t->seek, t->count);
+  return toRet;
 }
 
 TokType tokType(const char c) {
@@ -481,6 +495,8 @@ JValue *jsonParseNumber(Parser *p) {
 
 void jsonRewind(Parser *p, int saved) {
   if(saved == p->cur->seek) {
+    p->error = 0;
+    p->error_tok = 0;
     return;
   }
 
@@ -491,6 +507,7 @@ void jsonRewind(Parser *p, int saved) {
   }else{
     p->cur->column -= p->cur->count;
   }
+  p->cur->count = 0;
   p->cur = next(p);
 
   if(p->cur == NULL) {
@@ -521,6 +538,7 @@ JValue *jsonParseArray(Parser *p) {
   }
 
   ArrayVal *curVal = malloc(sizeof(ArrayVal));
+  memset(curVal, 0, sizeof(ArrayVal));
   ArrayVal *head = 0;
   head = curVal;
 
@@ -665,7 +683,7 @@ void consumeWhitespace(Parser *p) {
     return;
   }
 
-  while(p->cur->type == WHITESPACE) {
+  while(p->cur->type == WHITESPACE || p->cur->type == NEWLINE) {
     p->cur = next(p);
   }
 }
@@ -701,7 +719,6 @@ JValue *jsonParseF(FILE *file) {
 
     if(val && !p.error) {
       free(p.error_message);
-      //jsonRewind(&p, first);
       free(first);
       fclose(file);
       return val;
@@ -710,7 +727,7 @@ JValue *jsonParseF(FILE *file) {
     }
   }
 
-  //jsonRewind(&p, first);
+
   BAD_CHARACTER(&p)
   jsonPrintError(&p);
   free(p.error_message);

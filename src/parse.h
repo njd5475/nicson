@@ -32,7 +32,7 @@ typedef struct Tok {
   unsigned char  count;
   unsigned short line;
   unsigned short column;
-  TokType type : 4;
+  TokType type;
   //struct Tok *previous;
 } Tok;
 
@@ -57,7 +57,7 @@ typedef struct Parser {
 TokType     tokType(const char c);
 Tok*        ffirst(Parser *p);
 Tok*        next(Parser *p);
-Tok*        prev(Parser *p);
+char *      getTerm(Parser *p);
 const char *strTokType(Tok *tok);
 void        printTok(Tok *tok);
 int         isTerm(Parser *p, const char *term);
