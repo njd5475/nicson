@@ -73,7 +73,7 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   }
 
   JEntry *entry = malloc(sizeof(JEntry));
-  entry->name = strdup(name);
+  entry->name = name;
   entry->value = value;
   entry->probes = 1;
   entry->hash = fnvstr(entry->name);
@@ -118,7 +118,11 @@ JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
 }
 
 JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
-  return jsonAddVal(obj, name, jsonStringValue(value));
+  return jsonAddVal(obj, name, jsonStringValue(value, NO_DUP));
+}
+
+JObject *jsonAddStringDup(JObject *obj, const char *name, const char *value) {
+  return jsonAddVal(obj, strdup(name), jsonStringValue(value, DUP));
 }
 
 JValue* _jsonGetObjVal(const JObject *obj, const char* keys) {
@@ -230,10 +234,14 @@ JValue* jsonBoolValue(const char value) {
   return val;
 }
 
-JValue* jsonStringValue(const char *value) {
+JValue* jsonStringValue(const char *value, short dup) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_STRING;
-  val->value = strdup(value);
+  if(dup) {
+    val->value = strdup(value);
+  }else{
+    val->value = value;
+  }
   val->size = strlen(val->value) + 1;
   return val;
 }
@@ -241,9 +249,7 @@ JValue* jsonStringValue(const char *value) {
 JValue* jsonIntValue(const int value) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_INT;
-  int *ival = malloc(sizeof(value));
-  memcpy(ival, &value, sizeof(value));
-  val->value = ival;
+  memcpy(&val->value, &value, sizeof(int));
   val->size = sizeof(value);
   return val;
 }
@@ -326,7 +332,7 @@ JObject *jsonNewObject() {
 int jsonInt(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if (val && val->value_type == VAL_INT) {
-    return *((int*) val->value);
+    return (int) val->value;
   }
   return -1;
 }
@@ -501,7 +507,7 @@ void jsonFree(JValue *val) {
     JValue **values = val->value;
     int count = val->size / sizeof(*values);
     for (int i = 0; i < count; ++i) {
-      jsonFree(values[0]);
+      jsonFree(values[i]);
     }
   } else if (vtype == VAL_STRING_ARRAY) {
     char **strings = val->value;
@@ -511,6 +517,8 @@ void jsonFree(JValue *val) {
     }
   }
 
-  free(val->value);
+  if(vtype != VAL_INT) {
+    free(val->value);
+  }
   free(val);
 }

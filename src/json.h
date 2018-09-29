@@ -30,7 +30,7 @@ typedef struct JEntry {
   char   *name;
   JValue *value;
   int     hash;
-  short   probes;
+  unsigned short   probes;
 } JEntry;
 
 typedef struct JObject {
@@ -46,10 +46,14 @@ JObject* jsonAddVal(JObject *obj, const char *name, struct JValue *value);
 JObject* jsonAddObj(JObject *obj, const char *name, JObject *value);
 JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
+JObject* jsonAddStringDup(JObject *pbj, const char *name, const char *value);
 JObject* jsonAddString(JObject *pbj, const char *name, const char *value);
 
 JValue*  jsonBoolValue(const char value);
-JValue*  jsonStringValue(const char *value);
+
+#define NO_DUP 0
+#define DUP 1
+JValue*  jsonStringValue(const char *value, short dup);
 JValue*  jsonIntValue(const int value);
 JValue*  jsonFloatValue(const float value);
 JValue*  jsonDoubleValue(const double value);

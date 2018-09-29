@@ -308,3 +308,14 @@ TEST (JsonParserWorks, shouldParseEscapedQuotes) {
   free(deleteMe);
 }
 
+
+TEST(JsonParserWorks, shouldFreeMixedArraysInsideNestedObjects) {
+  char *deleteMe = NULL;
+  FILE *file = inlineJson("{\"obj\":{\"key\":[{\"hello\":\"whatsup\"},{\"hello\":\"whatsup\"},true,false,null,21345,1,1,1,1,0]}}", &deleteMe);
+  JValue *val = jsonParseF(file);
+  ASSERT_TRUE(val != NULL);
+  EXPECT_EQ(VAL_OBJ, val->value_type);
+  jsonFree(val);
+  free(deleteMe);
+}
+

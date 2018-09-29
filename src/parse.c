@@ -290,7 +290,6 @@ void jsonParseMembers(Parser *p, JObject *obj) {
     if(!p->error) {
       jsonAddVal(obj, key, val);
     }
-    free((void*) key);
   } else {
     free((void*) key);
     jsonPrintError(p);
@@ -385,8 +384,7 @@ JValue *jsonParseString(Parser *p) {
   }
 
   if(str) {
-    JValue *val = jsonStringValue(str);
-    free((void*) str);
+    JValue *val = jsonStringValue(str, NO_DUP);
     return val;
   }
   return 0;
@@ -629,8 +627,8 @@ JValue *jsonParseArray(Parser *p) {
     int *integers = malloc(sizeof(*integers) * count);
     arrayVal->size = sizeof(*integers) * count;
     for(int i = 0; i < count; ++i) {
-      int *num = (int*) arry[i]->value;
-      integers[i] = *num;
+      int num = (int) arry[i]->value;
+      integers[i] = num;
       jsonFree(arry[i]);
     }
     arrayVal->value = integers;
@@ -659,8 +657,8 @@ JValue *jsonParseArray(Parser *p) {
     arrayVal->size = sizeof(*strings) * count;
     for(int i = 0; i < count; ++i) {
       char *string = (char*) arry[i]->value;
-      strings[i] = strdup(string);
-      jsonFree(arry[i]);
+      strings[i] = string;
+      free(arry[i]);
     }
     arrayVal->value = strings;
   } else if(arrayVal->value_type == VAL_BOOL_ARRAY) {
