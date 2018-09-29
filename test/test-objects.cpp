@@ -1,8 +1,8 @@
 #include "gtest/gtest.h"
 
 extern "C" {
-  #include "json.h"
-  #include "parse.h"
+  #include "../src/json.h"
+  #include "../src/parse.h"
 };
 
 TEST(JsonObjectManipulation, shouldHaveAValidJValue) {

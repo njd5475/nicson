@@ -24,6 +24,7 @@
 #define DOT          13
 #define EXPONENT     14
 #define PLUS_MINUS   15
+#define NEWLINE      16
 
 typedef unsigned char TokType;
 typedef struct Tok {
@@ -32,7 +33,7 @@ typedef struct Tok {
   unsigned short line;
   unsigned short column;
   TokType type : 4;
-  struct Tok *previous;
+  //struct Tok *previous;
 } Tok;
 
 #ifndef TOK_BUF_SIZE
@@ -55,7 +56,8 @@ typedef struct Parser {
 
 TokType     tokType(const char c);
 Tok*        ffirst(Parser *p);
-Tok*        next(Tok *last, Parser *p);
+Tok*        next(Parser *p);
+Tok*        prev(Parser *p);
 const char *strTokType(Tok *tok);
 void        printTok(Tok *tok);
 int         isTerm(Parser *p, const char *term);

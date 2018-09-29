@@ -26,23 +26,6 @@
 #define UNEXPECTED_TOKEN(p)  jsonSetParserError(p, 43, "Unexpected Token", __FILE__, __LINE__);
 #define BAD_CHARACTER(p)     jsonSetParserError(p, 99, "Could not read first character", __FILE__, __LINE__);
 
-void freeTokens(Parser *p, Tok *start) {
-  if(p->eof || p->error) {
-    return;
-  }
-  Tok *last = p->cur->previous;
-  while(last != 0 && last != start && last != p->first) {
-    Tok *toDel = last;
-    last = last->previous;
-    free(toDel);
-  }
-
-  if(last != 0 && last != p->first) {
-    p->cur->previous = last->previous;
-    free(last);
-  }
-}
-
 void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg,
     const char *file, int ln) {
   p->error = errNo;
@@ -58,9 +41,12 @@ void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg,
 void jsonPrintError(Parser *p) {
   fflush(stdout);
   if(p->error_tok) {
-    fprintf(stderr, "Parse error %s(%d): %s, for %s, at ln %d, col %d\n",
+    char *token = (char*)malloc(sizeof(char)*p->cur->count+1);
+    memset(token, 0, p->cur->count+1);
+    jsonRead(token, p, p->cur->seek, p->cur->count);
+    fprintf(stderr, "Parse error %s(%d): %s, for %s (%s), at ln %d, col %d\n",
         p->error_in_file, p->error_on_line, p->error_message,
-        strTokType(p->error_tok), p->error_tok->line, p->error_tok->column);
+        strTokType(p->error_tok), token, p->error_tok->line, p->error_tok->column);
   } else {
     fprintf(stderr, "Parse error: Unexpected end of file!\n");
   }
@@ -73,81 +59,31 @@ Tok *ffirst(Parser *p) {
   char ch;
   jsonRead(&ch, p, 0, 1);
   tok->type = tokType(ch);
-  tok->previous = 0;
   tok->line = 1;
   tok->column = 0;
   return tok;
 }
 
-Tok *next(Tok *last, Parser *p) {
-  if(last) {
-    if(p->eof) {
-      return p->cur;
-    }
-    char buf = '\0';
+Tok *next(Parser *p) {
+  p->cur->seek += p->cur->count; //advance the pointer
+  p->cur->count = 1;
+  char buf = '\0';
+  jsonRead(&buf, p, p->cur->seek + p->cur->count, 1); //read one character
+  p->cur->type = tokType(buf);
+  TokType nextType;
+  do {
+    p->cur->count++;
+    p->cur->column++;
+    jsonRead(&buf, p, p->cur->seek + p->cur->count, 1); //read one character
+    nextType = tokType(buf);
+  }while(p->cur->type == nextType);
 
-    jsonRead(&buf, p, last->seek + last->count, 1);
-
-    if(!buf) {
-      p->eof = 1;
-      return p->cur;
-    }
-
-    if(last->type == tokType(buf)
-        && (last->type == OTHER || last->type == WHITESPACE)) {
-      last->count++;
-      if(buf == '\n') {
-        last->line++;
-        last->column = 0;
-      }
-      return last;
-    } else {
-      Tok *next = (Tok*) malloc(sizeof(Tok));
-      next->seek = last->seek + last->count;
-      next->count = 1;
-      if(buf == '\n') {
-        next->line = last->line + 1;
-        next->column = 0;
-      } else {
-        next->line = last->line;
-        next->column = last->column + last->count;
-      }
-      next->type = tokType(buf);
-      //next->previous = last;
-      return next;
-    }
+  if(nextType == NEWLINE) {
+    p->cur->column = 0;
+    p->cur->line++;
   }
-  return 0;
-}
 
-void prev(Parser *p, Tok *prev, Tok *cur) {
-	if(cur->count > 1) {
-		cur->count--;
-		cur->column--;
-		if(cur->column < 0) {
-			cur->line--;
-		}
-		*prev = *cur;
-	}else{
-		char buf = '\0';
-
-		jsonRead(&buf, p, cur->seek -1, 1);
-
-		if(!buf) {
-		  p->eof = 1;
-		  return;
-		}
-		prev->seek = cur->seek - 1;
-	  prev->count = 1;
-	  if(buf == '\n' || cur->column == 0) {
-	    prev->line = cur->line - 1;
-	    prev->column = 0;
-	  } else {
-	    prev->line = cur->line;
-	    prev->column = cur->column - 1;
-	  }
-	  prev->type = tokType(buf);
-	}
+  return p->cur;
 }
 
 TokType tokType(const char c) {
@@ -169,8 +105,10 @@ TokType tokType(const char c) {
     return CLOSE_BRACKET;
   } else if(c == ',') {
     return COMMA;
-  } else if(c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+  } else if(c == ' ' || c == '\t') {
     return WHITESPACE;
+  } else if(c == '\n' || c == '\r') {
+    return NEWLINE;
   } else if(c >= '0' && c <= '9') {
     return DIGIT;
   } else if(c == '.') {
@@ -203,6 +141,8 @@ const char *strTokType(Tok *tok) {
       return "Comma";
     } else if(tok->type == WHITESPACE) {
       return "Whitespace";
+    } else if(tok->type == NEWLINE) {
+      return "Newline";
     } else if(tok->type == DOT) {
       return "Dot";
     } else if(tok->type == DIGIT) {
@@ -258,7 +198,7 @@ int isTerm(Parser *p, const char *cterm) {
 const char* jsonParseQuotedString(Parser* p, char quote) {
   TokType quoteType = tokType(quote);
   consume(p);
-  Tok *start = p->cur;
+  int start = p->cur->seek;
   while(p->cur->type != quoteType) {
     if(p->cur->type == BACK_SLASH) {
       consume(p);
@@ -270,10 +210,10 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
       break;
     }
   }
-  int size = (p->cur->seek-start->seek);
+  int size = (p->cur->seek-start);
   char* str = malloc(sizeof(char) * size+1);
   memset(str, 0, size+1);
-  jsonRead(str, p, start->seek, size);
+  jsonRead(str, p, start, size);
 
   consume(p);
   return str;
@@ -287,7 +227,6 @@ JValue *jsonParseObject(Parser *p) {
     UNEXPECTED_TOKEN(p)
     return 0;
   }
-  Tok *start = p->cur;
   JObject *obj = jsonNewObject();
   char haveComma = 0;
   do {
@@ -316,8 +255,6 @@ JValue *jsonParseObject(Parser *p) {
     jsonFree(jsonObjectValue(obj));
     return 0;
   }
-
-  freeTokens(p, start);
 
   consume(p);
 
@@ -543,9 +480,18 @@ JValue *jsonParseNumber(Parser *p) {
 }
 
 void jsonRewind(Parser *p, int saved) {
-  while(p->cur && p->cur->seek != saved) {
-    prev(p, p->cur, p->cur);
+  if(saved == p->cur->seek) {
+    return;
   }
+
+  p->cur->seek = saved;
+  if(p->cur->type == NEWLINE) {
+    p->cur->column = 0;
+    p->cur->line--;
+  }else{
+    p->cur->column -= p->cur->count;
+  }
+  p->cur = next(p);
 
   if(p->cur == NULL) {
     p->error = 45;
@@ -720,12 +666,12 @@ void consumeWhitespace(Parser *p) {
   }
 
   while(p->cur->type == WHITESPACE) {
-    p->cur = next(p->cur, p);
+    p->cur = next(p);
   }
 }
 
 void consume(Parser *p) {
-  p->cur = next(p->cur, p);
+  p->cur = next(p);
 }
 
 JValue *jsonParse(const char *filename) {

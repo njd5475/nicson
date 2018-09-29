@@ -1,9 +1,11 @@
 #include "gtest/gtest.h"
 
 extern "C" {
-  #include "json.h"
-  #include "parse.h"
+  #include "../src/json.h"
+  #include "../src/parse.h"
 };
+
+#define NULL_JVAL (JValue*)(0)
 
 FILE *inlineJson(const char *jstr, char **deleteThis) {
     char *buf = strdup(jstr);
@@ -14,12 +16,13 @@ FILE *inlineJson(const char *jstr, char **deleteThis) {
 TEST(JsonParserWorks, shouldParseNullvalue) {
   char *deleteMe = NULL;
   JValue *val = jsonParseF(inlineJson("{\"parsesNullValue\": null}", &deleteMe));
-  ASSERT_NE(NULL, val);
+
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   JObject *obj = (JObject*)val->value;
   JValue *nullVal = jsonGet(obj, "parsesNullValue");
-  ASSERT_NE(NULL, nullVal);
+  ASSERT_NE(NULL_JVAL, nullVal);
   EXPECT_EQ(nullVal->value_type, VAL_NULL);
   jsonFree(val);
   free(deleteMe);
@@ -28,7 +31,7 @@ TEST(JsonParserWorks, shouldParseNullvalue) {
 TEST(JsonParserWorks, shouldParseBoolArray) {
   char *deleteMe = NULL;
   JValue *val = jsonParseF(inlineJson("{\"parsesBoolArray\": [\ntrue\n,\n false\n]\n}", &deleteMe));
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   JObject *obj = (JObject*)val->value;
@@ -43,7 +46,7 @@ TEST(JsonParserWorks, shouldParseBoolArray) {
 TEST(JsonParserWorks, shouldParseBoolArrayWithNewLines) {
   char *deleteMe = NULL;
   JValue *val = jsonParseF(inlineJson("{\"something_something\": true,\n\"items\": [\n{\n},\n false\n]\n}", &deleteMe));
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   jsonFree(val);
@@ -54,7 +57,7 @@ TEST(JsonParserWorks, shouldParseBool) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{\"thisIsTrue\": true, \"thisIsFalse\": false}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
@@ -64,7 +67,7 @@ TEST(JsonParserWorks, shouldParseEmptyArray) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{\"thisIsTrue\": []}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
@@ -74,7 +77,7 @@ TEST(JsonParserWorks, shouldParseArrayAfterBool) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{\"thisIsTrue\": false, \"thisIsFalse\": []}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
@@ -83,7 +86,7 @@ TEST(JsonParserWorks, shouldParseArrayAfterBool) {
 TEST(JsonParserWorks, shouldParseTrueValue) {
   char *deleteMe = NULL;
   JValue *val = jsonParseF(inlineJson("{\"parsesTrues\": true}", &deleteMe));
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   JObject *obj = (JObject*)val->value;
@@ -95,7 +98,7 @@ TEST(JsonParserWorks, shouldParseTrueValue) {
 TEST(JsonParserWorks, shouldParseFalseValue) {
   char *deleteMe = NULL;
   JValue *val = jsonParseF(inlineJson("{\"parsesFalses\": false}", &deleteMe));
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   
   JObject *obj = (JObject*)val->value;
@@ -108,13 +111,13 @@ TEST(JsonParserWorks, shouldEndAtEndOfStream) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   jsonFree(val);
   free(deleteMe);
 
   file = inlineJson("{\"message\":\"hello\"", &deleteMe);
   val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   jsonFree(val);
   free(deleteMe);
 }
@@ -123,7 +126,7 @@ TEST(JsonParserWorks, shouldParseObjectWithStringValues) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{\"message\":\"hello\"}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   EXPECT_STREQ(jsonString((JObject*)val->value, "message"), "hello");
   jsonFree(val);
@@ -134,7 +137,7 @@ TEST(JsonParserWorks, shouldParseEmptyObject) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
@@ -144,7 +147,7 @@ TEST(JsonParserWorks, shouldParseBools) {
   char *deleteMe = NULL;
   FILE *file = inlineJson("{\"thisIsTrue\": true, \"thisIsFalse\": false}", &deleteMe);
   JValue *val = jsonParseF(file);
-  ASSERT_NE(NULL, val);
+  ASSERT_NE(NULL_JVAL, val);
   EXPECT_EQ(val->value_type, VAL_OBJ);
   jsonFree(val);
   free(deleteMe);
