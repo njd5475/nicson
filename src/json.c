@@ -151,7 +151,8 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
     }
   }
   if(stringCache != NULL && stringCache != obj) {
-    char *cached = jsonString(stringCache, name);
+    char *cached = NULL;
+    cached = jsonString(stringCache, name);
     if(cached == NULL) {
       cached = strdup(name);
       jsonAddString(stringCache, cached, cached);
@@ -513,7 +514,7 @@ char* jsonBoolArray(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if (val && val->value_type == VAL_BOOL_ARRAY && val->size > 0 && val->value) {
     char *ret = malloc(sizeof(char) * val->size);
-    memcpy(ret, &val->value, val->size);
+    memcpy(ret, val->value, val->size);
     return ret;
   }
   return NULL;

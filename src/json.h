@@ -27,14 +27,14 @@ typedef struct JValue {
 } JValue;
 
 typedef struct JEntry {
-  char   *name;
-  JValue *value;
-  int     hash;
+  char*            name;
+  JValue*          value;
+  int              hash;
   unsigned short   probes;
 } JEntry;
 
 typedef struct JObject {
-  JEntry         **entries; // hashed arrangement by key.
+  JEntry**       entries; // hashed arrangement by key.
   unsigned int   size;
   unsigned int   _arraySize;
   unsigned short _maxProbes;

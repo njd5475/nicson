@@ -274,7 +274,6 @@ JValue *jsonParseObject(Parser *p) {
 }
 
 void jsonParseMembers(Parser *p, JObject *obj) {
-  const char* key = NULL;
   int start = p->cur->seek+1;
   int size = -1;
   if(p->cur->type == SINGLE_QUOTE) {
@@ -287,7 +286,7 @@ void jsonParseMembers(Parser *p, JObject *obj) {
     JValue *val = jsonParseValue(p);
     if(!p->error) {
       char buf[size+1];
-      memset(buf, 0, size+1);
+      memset(buf, '\0', size+1);
       jsonRead(buf, p, start, size);
       jsonAddVal(obj, buf, val);
     }
@@ -381,7 +380,7 @@ JValue *jsonParseValue(Parser *p) {
 
 JValue *jsonParseString(Parser *p) {
   Tok *cur = p->cur;
-  int start = p->cur->seek;
+  int start = p->cur->seek+1;
   int size = -1;
   if(cur->type == SINGLE_QUOTE) {
     size = jsonParseQuotedString(p, '\'');
@@ -389,9 +388,9 @@ JValue *jsonParseString(Parser *p) {
     size = jsonParseQuotedString(p, '"');
   }
 
-  if(size == -1) {
+  if(size != -1) {
     char buf[size+1];
-    memset(buf, 0, size+1);
+    memset(buf, '\0', size+1);
     jsonRead(buf, p, start, size);
     JValue *val = jsonStringValue(buf, DUP);
     return val;
@@ -679,7 +678,7 @@ JValue *jsonParseArray(Parser *p) {
     char *bools = malloc(sizeof(char) * count);
     arrayVal->size = sizeof(char) * count;
     for(int i = 0; i < count; ++i) {
-      bools[i] = ((char*)&arry[i]->value)[0];
+      bools[i] = *((char*)&arry[i]->value);
       jsonFree(arry[i]);
     }
     arrayVal->value = bools;
@@ -716,11 +715,9 @@ JValue *jsonParseF(FILE *file) {
     return 0;
   }
   Parser p;
-  p.eof = 0;
+  memset(&p, 0, sizeof(p));
   p.file = file;
   p.buf_seek = -1;
-  p.error = 0;
-  p.error_tok = 0;
   p.error_message = strdup("Unknown Error");
   Tok *first = p.first = p.cur = ffirst(&p);
   if(p.cur) {
