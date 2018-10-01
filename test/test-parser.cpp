@@ -258,7 +258,7 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
 
 TEST (JsonParserWorks, shouldParseArrayOfFloats) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("[1.1, 2.123, 3.345, 4.54, 5.43]", &deleteMe);
+  FILE *file = inlineJson("[1.1, 0.123, 3.345, -4.54E10, 5.43, +8.9, -0.0004, +0.03]", &deleteMe);
   JValue *val = jsonParseF(file);
   ASSERT_TRUE(val != NULL);
   EXPECT_EQ(VAL_FLOAT_ARRAY, val->value_type);

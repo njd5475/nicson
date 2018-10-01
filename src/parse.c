@@ -41,9 +41,9 @@ void jsonSetParserError(Parser *p, unsigned int errNo, const char *msg,
 void jsonPrintError(Parser *p) {
   fflush(stdout);
   if(p->error_tok) {
-    char *token = (char*)malloc(sizeof(char)*p->cur->count+1);
-    memset(token, 0, p->cur->count+1);
-    jsonRead(token, p, p->cur->seek, p->cur->count);
+    char *token = (char*)malloc(sizeof(char)*p->error_tok->count+1);
+    memset(token, 0, p->error_tok->count+1);
+    jsonRead(token, p, p->error_tok->seek, p->error_tok->count);
     fprintf(stderr, "Parse error %s(%d): %s, for %s (%s), at ln %d, col %d\n",
         p->error_in_file, p->error_on_line, p->error_message,
         strTokType(p->error_tok), token, p->error_tok->line, p->error_tok->column);
@@ -211,7 +211,7 @@ int isTerm(Parser *p, const char *cterm) {
   return 0;
 }
 
-const char* jsonParseQuotedString(Parser* p, char quote) {
+int jsonParseQuotedString(Parser* p, char quote) {
   TokType quoteType = tokType(quote);
   consume(p);
   int start = p->cur->seek;
@@ -227,12 +227,8 @@ const char* jsonParseQuotedString(Parser* p, char quote) {
     }
   }
   int size = (p->cur->seek-start);
-  char *str = malloc(sizeof(char)*size+1);
-  memset(str, 0, size+1);
-  jsonRead(str, p, start, size);
-
   consume(p);
-  return str;
+  return size;
 }
 
 JValue *jsonParseObject(Parser *p) {
@@ -279,20 +275,26 @@ JValue *jsonParseObject(Parser *p) {
 
 void jsonParseMembers(Parser *p, JObject *obj) {
   const char* key = NULL;
+  int start = p->cur->seek+1;
+  int size = -1;
   if(p->cur->type == SINGLE_QUOTE) {
-    key = jsonParseQuotedString(p, '\'');
+    size = jsonParseQuotedString(p, '\'');
   } else if(p->cur->type == DOUBLE_QUOTE) {
-    key = jsonParseQuotedString(p, '"');
+    size = jsonParseQuotedString(p, '"');
   }
   jsonExpectPairSeparator(p);
   if(!p->error) {
     JValue *val = jsonParseValue(p);
     if(!p->error) {
-      jsonAddVal(obj, key, val);
+      char buf[size+1];
+      memset(buf, 0, size+1);
+      jsonRead(buf, p, start, size);
+      jsonAddVal(obj, buf, val);
     }
   } else {
     jsonPrintError(p);
   }
+
 }
 
 void jsonExpectPairSeparator(Parser *p) {
@@ -311,13 +313,14 @@ void jsonExpectPairSeparator(Parser *p) {
 JValue *jsonParseValue(Parser *p) {
   int saved = p->cur->seek;
 
-  JValue *val = jsonParseString(p);
-  if(val && p->error == 0) {
-    return val;
-  }
-  jsonRewind(p, saved);
-
-  if(p->cur->type == OPEN_BRACE) {
+  JValue *val = NULL;
+  if(p->cur->type == SINGLE_QUOTE || p->cur->type == DOUBLE_QUOTE) {
+    val = jsonParseString(p);
+    if(val && p->error == 0) {
+      return val;
+    }
+    jsonRewind(p, saved);
+  } else if(p->cur->type == OPEN_BRACE) {
     val = jsonParseObject(p);
 
     if(val && !p->error) {
@@ -340,36 +343,37 @@ JValue *jsonParseValue(Parser *p) {
       jsonFree(val);
     }
     jsonRewind(p, saved);
-  }
+  }else if(p->cur->type == PLUS_MINUS || p->cur->type == DIGIT || p->cur->type == DOT) {
 
-  val = jsonParseNumber(p);
+    val = jsonParseNumber(p);
 
-  if(val && !p->error) {
-    return val;
-  }
+    if(val && !p->error) {
+      return val;
+    }
 
-  if(val) {
-    jsonFree(val);
-  }
+    if(val) {
+      jsonFree(val);
+    }
 
-  jsonRewind(p, saved);
+    jsonRewind(p, saved);
+  }else if(p->cur->type == OTHER) {
+    val = jsonParseBool(p);
 
-  val = jsonParseBool(p);
+    if(val && !p->error) {
+      return val;
+    }
 
-  if(val && !p->error) {
-    return val;
-  }
+    if(val) {
+      jsonFree(val);
+    }
 
-  if(val) {
-    jsonFree(val);
-  }
+    jsonRewind(p, saved);
 
-  jsonRewind(p, saved);
-
-  if(isTerm(p, "null")) {
-    return jsonNullValue();
-  } else {
-    UNEXPECTED_TOKEN(p);
+    if(isTerm(p, "null")) {
+      return jsonNullValue();
+    } else {
+      UNEXPECTED_TOKEN(p);
+    }
   }
 
   return 0;
@@ -377,15 +381,19 @@ JValue *jsonParseValue(Parser *p) {
 
 JValue *jsonParseString(Parser *p) {
   Tok *cur = p->cur;
-  const char* str = NULL;
+  int start = p->cur->seek;
+  int size = -1;
   if(cur->type == SINGLE_QUOTE) {
-    str = jsonParseQuotedString(p, '\'');
+    size = jsonParseQuotedString(p, '\'');
   } else if(cur->type == DOUBLE_QUOTE) {
-    str = jsonParseQuotedString(p, '"');
+    size = jsonParseQuotedString(p, '"');
   }
 
-  if(str) {
-    JValue *val = jsonStringValue(str, NO_DUP);
+  if(size == -1) {
+    char buf[size+1];
+    memset(buf, 0, size+1);
+    jsonRead(buf, p, start, size);
+    JValue *val = jsonStringValue(buf, DUP);
     return val;
   }
   return 0;
@@ -495,6 +503,11 @@ JValue *jsonParseNumber(Parser *p) {
 }
 
 void jsonRewind(Parser *p, int saved) {
+  if(p->cur == NULL) {
+    p->error = 45;
+    return;
+  }
+
   if(saved == p->cur->seek) {
     p->error = 0;
     p->error_tok = 0;
@@ -554,7 +567,7 @@ JValue *jsonParseArray(Parser *p) {
     }
     curVal->val = jsonParseValue(p);
 
-    if(!curVal || p->error) {
+    if(curVal == NULL || p->error) {
       while(head != 0) {
         ArrayVal *deletable = head;
         head = head->next;
@@ -638,18 +651,18 @@ JValue *jsonParseArray(Parser *p) {
     float *floats = malloc(sizeof(*floats) * count);
     arrayVal->size = sizeof(*floats) * count;
     for(int i = 0; i < count; ++i) {
-      float *num = (float*) arry[i]->value;
-      floats[i] = *num;
+      float num = *(float*) &arry[i]->value;
+      floats[i] = num;
       jsonFree(arry[i]);
     }
     arrayVal->value = floats;
   } else if(arrayVal->value_type == VAL_DOUBLE_ARRAY) {
     //convert to array of doubles
-    float *doubles = malloc(sizeof(*doubles) * count);
-    arrayVal->size = sizeof(*doubles) * count;
+    double *doubles = malloc(sizeof(double*) * count);
+    arrayVal->size = sizeof(float*) * count;
     for(int i = 0; i < count; ++i) {
-      double *num = (double*) arry[i]->value;
-      doubles[i] = *num;
+      double num = *(double*) &arry[i]->value;
+      doubles[i] = num;
       jsonFree(arry[i]);
     }
     arrayVal->value = doubles;
@@ -666,7 +679,7 @@ JValue *jsonParseArray(Parser *p) {
     char *bools = malloc(sizeof(char) * count);
     arrayVal->size = sizeof(char) * count;
     for(int i = 0; i < count; ++i) {
-      bools[i] = ((char*) arry[i]->value)[0];
+      bools[i] = ((char*)&arry[i]->value)[0];
       jsonFree(arry[i]);
     }
     arrayVal->value = bools;
@@ -707,6 +720,7 @@ JValue *jsonParseF(FILE *file) {
   p.file = file;
   p.buf_seek = -1;
   p.error = 0;
+  p.error_tok = 0;
   p.error_message = strdup("Unknown Error");
   Tok *first = p.first = p.cur = ffirst(&p);
   if(p.cur) {

@@ -85,11 +85,79 @@ JObject* jsonDeleteKey(JObject *obj, const char *key) {
   return 0;
 }
 
+void signalHandler() {
+  JObject *obj = stringCache;
+  JEntry *toDel = NULL;
+  JValue *valToDel = NULL;
+  typedef struct ToDelete {
+    const char        *value;
+    struct ToDelete   *next;
+  } ToDelete;
+  ToDelete *deletables = NULL;
+  for (int i = 0; i < obj->_arraySize; ++i) {
+    if (obj->entries[i] != NULL) {
+      toDel = obj->entries[i];
+      valToDel = toDel->value;
+
+      char found = 0;
+      ToDelete *cur = deletables;
+      ToDelete *last = cur;
+      while(!found && cur != NULL) {
+        if(cur->value == valToDel->value) {
+          found = 1;
+          break;
+        }
+        last = cur;
+        cur = cur->next;
+      }
+      if(!found) {
+        ToDelete *next = malloc(sizeof(ToDelete));
+        memset(next, 0, sizeof(ToDelete));
+        if(deletables == NULL) {
+          deletables = next;
+        }
+        if(last != NULL) {
+          last->next = next;
+        }
+        next->value = valToDel->value;
+      }
+      free(valToDel);
+      free(toDel);
+    }
+  }
+  if(deletables != NULL) {
+    ToDelete *cur = deletables;
+    while(cur != NULL) {
+      ToDelete *next = cur->next;
+      free(cur->value);
+      free(cur);
+      cur = next;
+    }
+  }
+  free(obj->entries);
+  free(obj);
+  stringCache = 0;
+}
+
 JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
   if (!obj) {
     obj = jsonNewObject();
   }
 
+  if(stringCache == NULL && stringCache != obj) {
+    stringCache = jsonNewObject();
+    if(atexit(signalHandler) != 0) {
+      printf(stderr, "WARNING: Could not register cleanup function!");
+    }
+  }
+  if(stringCache != NULL && stringCache != obj) {
+    char *cached = jsonString(stringCache, name);
+    if(cached == NULL) {
+      cached = strdup(name);
+      jsonAddString(stringCache, cached, cached);
+      name = cached;
+    }
+  }
   JEntry *entry = malloc(sizeof(JEntry));
   entry->name = name;
   entry->value = value;
@@ -137,10 +205,6 @@ JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
 
 JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
   return jsonAddVal(obj, name, jsonStringValue(value, NO_DUP));
-}
-
-JObject *jsonAddStringDup(JObject *obj, const char *name, const char *value) {
-  return jsonAddVal(obj, strdup(name), jsonStringValue(value, DUP));
 }
 
 JValue* _jsonGetObjVal(const JObject *obj, const char* keys) {
@@ -260,13 +324,15 @@ char *allButLast(const char *keys) {
   return newkeys;
 }
 
+JValue true = {VAL_BOOL,0,1};
+JValue false = {VAL_BOOL,0,0};
+
 JValue* jsonBoolValue(const char value) {
-  JValue *val = malloc(sizeof(JValue));
-  val->value_type = VAL_BOOL;
-  val->value = malloc(sizeof(char));
-  memcpy(val->value, &value, sizeof(char));
-  val->size = sizeof(char);
-  return val;
+  if(value == 0) {
+    return &false;
+  }else{
+    return &true;
+  }
 }
 
 JValue* jsonStringValue(const char *value, short dup) {
@@ -292,27 +358,24 @@ JValue* jsonIntValue(const int value) {
 JValue* jsonUIntValue(const unsigned int value) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_INT;
-  val->value = malloc(sizeof(value));
-  memcpy(val->value, &value, sizeof(value));
-  val->size = sizeof(value);
+  memcpy(&val->value, &value, sizeof(unsigned int));
+  val->size = sizeof(unsigned int);
   return val;
 }
 
 JValue* jsonFloatValue(const float value) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_FLOAT;
-  val->value = malloc(sizeof(value));
-  memcpy(val->value, &value, sizeof(value));
-  val->size = sizeof(value);
+  memcpy(&val->value, &value, sizeof(float));
+  val->size = sizeof(float);
   return val;
 }
 
 JValue* jsonDoubleValue(const double value) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_DOUBLE;
-  val->value = malloc(sizeof(value));
-  memcpy(val->value, &value, sizeof(value));
-  val->size = sizeof(value);
+  memcpy(&val->value, &value, sizeof(double));
+  val->size = sizeof(double);
   return val;
 }
 
@@ -320,7 +383,7 @@ JValue* jsonObjectValue(JObject *obj) {
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_OBJ;
   val->value = (void*) (obj);
-  val->size = sizeof(obj);
+  val->size = sizeof(JObject);
   return val;
 }
 
@@ -373,7 +436,7 @@ int jsonInt(const JObject *obj, const char* keys) {
 unsigned int jsonUInt(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if (val && val->value_type == VAL_UINT) {
-    return *((unsigned int*) val->value);
+    return (unsigned int) val->value;
   }
   return -1;
 }
@@ -381,15 +444,15 @@ unsigned int jsonUInt(const JObject *obj, const char* keys) {
 float jsonFloat(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
   if (val && val->value_type == VAL_FLOAT) {
-    return *((float*) val->value);
+    return *(float *)&val->value;
   }
   return -1.0f;
 }
 
 double jsonDouble(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
-  if (val && val->value_type == VAL_INT) {
-    return *((double*) val->value);
+  if (val && val->value_type == VAL_DOUBLE) {
+    return *(double*) &val->value;
   }
   return -1.0;
 }
@@ -438,7 +501,7 @@ char jsonBool(const JObject* obj, const char* keys) {
       JValue *val = jsonGet(parentObj, lastKey);
       free(lastKey);
       if (val && val->value_type == VAL_BOOL) {
-        return *(char*) val->value;
+        return (char) val->value;
       }
     }
   }
@@ -448,12 +511,10 @@ char jsonBool(const JObject* obj, const char* keys) {
 
 char* jsonBoolArray(const JObject *obj, const char* keys) {
   JValue *val = jsonGet(obj, keys);
-  if (val && val->value_type == VAL_BOOL_ARRAY) {
-    if (val->size > 0 && val->value) {
-      char *ret = malloc(sizeof(ret[0]) * val->size);
-      memcpy(ret, val->value, val->size);
-      return ret;
-    }
+  if (val && val->value_type == VAL_BOOL_ARRAY && val->size > 0 && val->value) {
+    char *ret = malloc(sizeof(char) * val->size);
+    memcpy(ret, &val->value, val->size);
+    return ret;
   }
   return NULL;
 }
@@ -520,17 +581,18 @@ void jsonFree(JValue *val) {
   short vtype = val->value_type;
   if (vtype == VAL_OBJ) {
     JObject *obj = (JObject*) val->value;
+    if(obj == stringCache) {
+      return;
+    }
     JEntry *toDel = NULL;
     JValue *valToDel = NULL;
     for (int i = 0; i < obj->_arraySize; ++i) {
       if (obj->entries[i] != NULL) {
         toDel = obj->entries[i];
-
         valToDel = toDel->value;
 
         jsonFree((JValue*) valToDel);
-
-        free(toDel->name);
+        //free(toDel->name);
         free(toDel);
       }
     }
@@ -549,10 +611,12 @@ void jsonFree(JValue *val) {
     }
   }
 
-  if(vtype != VAL_INT && vtype != VAL_NULL) {
+  if(vtype != VAL_INT && vtype != VAL_NULL && vtype != VAL_BOOL
+      && vtype != VAL_DOUBLE && vtype != VAL_FLOAT && vtype != VAL_UINT) {
     free(val->value);
   }
-  if(vtype != VAL_NULL) {
+  if(vtype != VAL_NULL && vtype != VAL_BOOL) {
     free(val);
   }
 }
+

@@ -49,7 +49,6 @@ JObject* jsonAddVal(JObject *obj, const char *name, struct JValue *value);
 JObject* jsonAddObj(JObject *obj, const char *name, JObject *value);
 JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
-JObject* jsonAddStringDup(JObject *pbj, const char *name, const char *value);
 JObject* jsonAddString(JObject *obj, const char *name, const char *value);
 JObject* jsonDeleteKey(JObject *obj, const char *key);
 

@@ -18,7 +18,7 @@ TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {
     JObject *obj = jsonNewObject();
     EXPECT_TRUE(obj != NULL);
 
-    jsonAddStringDup(obj, "status", "Success");
+    jsonAddString(obj, "status", strdup("Success"));
     EXPECT_EQ(obj->size, 1);
     jsonFree(jsonObjectValue(obj));
 }
@@ -27,7 +27,7 @@ TEST(JsonObjectManipulation, shouldGetKeyValue) {
   JObject *obj = jsonNewObject();
   EXPECT_TRUE(obj != NULL);
 
-  jsonAddStringDup(obj, "status", "Success");
+  jsonAddString(obj, "status", strdup("Success"));
   JValue *val = jsonGet(obj, "status");
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_STRING);
@@ -40,8 +40,8 @@ TEST(JsonObjectManipulation, shouldGetKeyValueOutOfKeys) {
   JObject *obj = jsonNewObject();
   EXPECT_TRUE(obj != 0);
 
-  jsonAddStringDup(obj, "status2", "Not Successful");
-  jsonAddStringDup(obj, "status", "Success");
+  jsonAddString(obj, "status2", strdup("Not Successful"));
+  jsonAddString(obj, "status", strdup("Success"));
   JValue *val = jsonGet(obj, "status");
   EXPECT_TRUE(val != NULL);
   EXPECT_EQ(val->value_type, VAL_STRING);
@@ -54,9 +54,9 @@ TEST(JsonObjectManipulation, shouldGetStringOutOfObjectAsStored) {
   JObject *obj = jsonNewObject();
   EXPECT_EQ(obj->size, 0);
 
-  jsonAddStringDup(obj, "status", "Success");
-  jsonAddStringDup(obj, "hello", "it's hello");
-  jsonAddStringDup(obj, "message", "it's message");
+  jsonAddString(obj, "status", strdup("Success"));
+  jsonAddString(obj, "hello", strdup("it's hello"));
+  jsonAddString(obj, "message", strdup("it's message"));
   const char* out = jsonString(obj, "status");
   EXPECT_STREQ(out, "Success");
   EXPECT_STREQ(jsonString(obj, "hello"), "it's hello");
@@ -76,9 +76,9 @@ TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
 
   JObject *nestedThree = jsonNewObject();
 
-  jsonAddObj(nestedTwo, strdup("nestedObject3"), nestedThree);
-  jsonAddObj(nestedOne, strdup("nestedObject2"), nestedTwo);
-  jsonAddObj(obj, strdup("nestedObject1"), nestedOne);
+  jsonAddObj(nestedTwo, "nestedObject3", nestedThree);
+  jsonAddObj(nestedOne, "nestedObject2", nestedTwo);
+  jsonAddObj(obj, "nestedObject1", nestedOne);
 
   JObject* found = jsonObject(obj, "nestedObject1.nestedObject2.nestedObject3");
   EXPECT_EQ(found, nestedThree);
@@ -91,7 +91,7 @@ TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
   JObject *expandable = jsonNewObject();
   for(int i = 0; i < 100; ++i) {
     sprintf(buf, "Key %d", i);
-    jsonAddInt(expandable, strdup(buf), i);
+    jsonAddInt(expandable, buf, i);
   }
   EXPECT_EQ(expandable->size, 100);
   
