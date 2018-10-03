@@ -44,7 +44,7 @@ all: nicson-debug
 nicson-debug: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++  -o "nicson-debug" $(OBJS) $(USER_OBJS) $(LIBS)
+	g++ -pg -o "nicson-debug" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -14,12 +14,19 @@
 #include "json.h"
 
 int main(int count, const char**argv) {
+  printf("Debug JValue(%d)\n", sizeof(JValue));
+  printf("Debug JObject(%d)\n", sizeof(JObject));
+  printf("Debug JEntry(%d)\n", sizeof(JEntry));
 	if(count < 1) {
 		puts("Error: missing filename argument!");
 		return EXIT_FAILURE;
 	}
 	printf("Loading JSON: %s\n", argv[1]);
 	JValue *val = jsonParse(argv[1]);
+
+	if(stringCache) {
+	  printf("Strings cached used %d\n", stringCache->size);
+	}
 
 	if(!val) {
 	  fprintf(stderr, "Error Parsing file!\n");

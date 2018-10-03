@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEFAULT_HASH_SIZE   5
-#define DEFAULT_INC_AMOUNT  10
+#define DEFAULT_HASH_SIZE   15
+#define DEFAULT_INC_AMOUNT  100
 
 JObject *stringCache = NULL;
 
@@ -86,52 +86,19 @@ JObject* jsonDeleteKey(JObject *obj, const char *key) {
 }
 
 void signalHandler() {
+  if(!stringCache) {
+    return;
+  }
   JObject *obj = stringCache;
   JEntry *toDel = NULL;
   JValue *valToDel = NULL;
-  typedef struct ToDelete {
-    const char        *value;
-    struct ToDelete   *next;
-  } ToDelete;
-  ToDelete *deletables = NULL;
   for (int i = 0; i < obj->_arraySize; ++i) {
     if (obj->entries[i] != NULL) {
       toDel = obj->entries[i];
       valToDel = toDel->value;
-
-      char found = 0;
-      ToDelete *cur = deletables;
-      ToDelete *last = cur;
-      while(!found && cur != NULL) {
-        if(cur->value == valToDel->value) {
-          found = 1;
-          break;
-        }
-        last = cur;
-        cur = cur->next;
-      }
-      if(!found) {
-        ToDelete *next = malloc(sizeof(ToDelete));
-        memset(next, 0, sizeof(ToDelete));
-        if(deletables == NULL) {
-          deletables = next;
-        }
-        if(last != NULL) {
-          last->next = next;
-        }
-        next->value = valToDel->value;
-      }
       free(valToDel);
+      free(toDel->name);
       free(toDel);
-    }
-  }
-  if(deletables != NULL) {
-    ToDelete *cur = deletables;
-    while(cur != NULL) {
-      ToDelete *next = cur->next;
-      free(cur->value);
-      free(cur);
-      cur = next;
     }
   }
   free(obj->entries);
@@ -170,7 +137,8 @@ JObject *jsonAddVal(JObject *obj, const char *name, JValue *value) {
     //now determine to expand the entry array
     JEntry **oldEntries = obj->entries;
     int oldCount = obj->_arraySize;
-    obj->_arraySize += DEFAULT_INC_AMOUNT;
+    obj->_arraySize += obj->_incrementSize;
+    obj->_incrementSize += (int)(obj->_arraySize * 0.1f);
     obj->size = 0;
     obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
     memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
@@ -336,14 +304,39 @@ JValue* jsonBoolValue(const char value) {
   }
 }
 
-JValue* jsonStringValue(const char *value, short dup) {
+JValue *getOrCacheString(const char* value) {
+  if(stringCache == NULL) {
+    stringCache = jsonNewObject();
+    if(atexit(signalHandler) != 0) {
+      printf(stderr, "WARNING: Could not register cleanup function!");
+    }
+  }
+  if(stringCache != NULL) {
+    JValue* cached = NULL;
+    cached = _jsonGetObjVal(stringCache, value);
+    if(cached == NULL) {
+      const char* duped = strdup(value);
+      cached = jsonStringValue(duped, NO_DUP);
+      jsonAddVal(stringCache, duped, cached);
+      return cached;
+    }else{
+      return cached;
+    }
+  }
   JValue *val = malloc(sizeof(JValue));
   val->value_type = VAL_STRING;
+  val->value = strdup(value);
+  val->size = strlen(val->value) + 1;
+  return val;
+}
+
+JValue* jsonStringValue(const char *value, short dup) {
   if(dup) {
-    val->value = strdup(value);
-  }else{
-    val->value = value;
+    return getOrCacheString(value);
   }
+  JValue *val = malloc(sizeof(JValue));
+  val->value_type = VAL_STRING;
+  val->value = value;
   val->size = strlen(val->value) + 1;
   return val;
 }
@@ -418,6 +411,7 @@ JValue *jsonMixedArrayValue(JValue **values) {
 
 JObject *jsonNewObject() {
   JObject *obj = malloc(sizeof(JObject));
+  obj->_incrementSize = DEFAULT_INC_AMOUNT;
   obj->_arraySize = DEFAULT_HASH_SIZE;
   obj->_maxProbes = obj->_arraySize / 5;
   obj->size = 0;
@@ -613,10 +607,11 @@ void jsonFree(JValue *val) {
   }
 
   if(vtype != VAL_INT && vtype != VAL_NULL && vtype != VAL_BOOL
-      && vtype != VAL_DOUBLE && vtype != VAL_FLOAT && vtype != VAL_UINT) {
+      && vtype != VAL_DOUBLE && vtype != VAL_FLOAT && vtype != VAL_UINT &&
+      vtype != VAL_STRING) {
     free(val->value);
   }
-  if(vtype != VAL_NULL && vtype != VAL_BOOL) {
+  if(vtype != VAL_NULL && vtype != VAL_BOOL && vtype != VAL_STRING) {
     free(val);
   }
 }

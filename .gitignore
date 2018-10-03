@@ -5,9 +5,6 @@ gmon.out
 *.gcda
 *.gcno
 
-/Release/
-/Tests/
-/Debug/
 /Release/nicson
 /Tests/nicson-test
 /Debug/nicson

@@ -36,8 +36,10 @@ typedef struct JEntry {
 typedef struct JObject {
   JEntry**       entries; // hashed arrangement by key.
   unsigned int   size;
+  unsigned int   _incrementSize;
   unsigned int   _arraySize;
   unsigned short _maxProbes;
+  unsigned char value_type : 4;
 } JObject;
 
 

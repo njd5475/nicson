@@ -102,4 +102,26 @@ TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
   jsonFree(jsonObjectValue(expandable));
 }
 
+TEST(JsonObjectManipulation, shouldGetStringsFromCache) {
+  JObject* store = jsonNewObject();
+
+  jsonAddString(store, "status", "started");
+  jsonAddString(store, "second_status", "started");
+
+  const char* firstStatus = jsonString(store, "status");
+  const char* secondStatus = jsonString(store, "second_status");
+  EXPECT_EQ(firstStatus, secondStatus);
+}
+
+TEST(JsonObjectManipulation, shouldGetStringsFromCacheNoKeyInterpretation) {
+  JObject* store = jsonNewObject();
+
+  jsonAddString(store, "status", "started.later");
+  jsonAddString(store, "second_status", "started.later");
+
+  const char* firstStatus = jsonString(store, "status");
+  const char* secondStatus = jsonString(store, "second_status");
+  EXPECT_EQ(firstStatus, secondStatus);
+}
+
 
