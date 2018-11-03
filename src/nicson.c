@@ -23,19 +23,19 @@ int main(int count, const char**argv) {
 	}
 	printf("Loading JSON: %s\n", argv[1]);
 	short type;
-	void *val = jsonParse(argv[1], &type);
+	JItemValue val = jsonParse(argv[1], &type);
 
 	if(stringCache) {
 	  printf("Strings cached used %d\n", stringCache->size);
 	}
 
-	if(!val) {
+	if(!val.ptr_val) {
 	  fprintf(stderr, "Error Parsing file!\n");
 	  exit(0);
 	}
 	
 	if(count >= 3) {
-	  JObject *obj = (JObject*)val;
+	  JObject *obj = val.object_val;
 	  if(type == VAL_INT) {
 	    printf("%s: %d\n", argv[2], jsonInt(obj, argv[2]));
 	  }else if(type == VAL_STRING) {

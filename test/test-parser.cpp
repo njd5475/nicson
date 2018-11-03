@@ -252,7 +252,7 @@ TEST (JsonParserWorks, shouldParseFloatValues) {
 
 TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
   char *deleteMe = NULL;
-  FILE* file = inlineJson("{\"val\":0.123E9}", &deleteMe);
+  FILE* file = inlineJson("{\"val\":0.123E20}", &deleteMe);
   short type = 0;
   JItemValue val = jsonParseF(file, &type);
   ASSERT_TRUE(val.object_val != NULL);
@@ -260,7 +260,7 @@ TEST (JsonParserWorks, shouldParseFloatWithScientificNotation) {
   short ftype = 0;
   JItemValue valVal = jsonGet(val.object_val, "val", &ftype);
   EXPECT_EQ(VAL_FLOAT, ftype);
-  EXPECT_EQ(0.123e9f, jsonFloat(val.object_val, "val"));
+  EXPECT_EQ(0.123e20f, jsonFloat(val.object_val, "val"));
   jsonFree(val, type);
   free(deleteMe);
 }
@@ -278,7 +278,7 @@ TEST (JsonParserWorks, shouldParseArrayOfIntegers) {
 
 TEST (JsonParserWorks, shouldParseArrayOfFloats) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("[1.1, 0.123, 3.345, -4.54E10, 5.43, +8.9, -0.0004, +0.03]", &deleteMe);
+  FILE *file = inlineJson("[-4.54E37, 1.1, 0.123E7, 3.345, 5.43, +8.9, -0.0004, +0.03]", &deleteMe);
   short type = 0;
   JItemValue val = jsonParseF(file, &type);
   ASSERT_TRUE(val.object_val != NULL);
@@ -289,7 +289,7 @@ TEST (JsonParserWorks, shouldParseArrayOfFloats) {
 
 TEST (JsonParserWorks, shouldParseArrayOfDoubles) {
   char *deleteMe = NULL;
-  FILE *file = inlineJson("[1.3E23, 2.4E24]", &deleteMe);
+  FILE *file = inlineJson("[1.3E39, 2.4E124]", &deleteMe);
   short type = 0;
   JItemValue val = jsonParseF(file, &type);
   ASSERT_TRUE(val.object_val != NULL);

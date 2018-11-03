@@ -540,7 +540,7 @@ void jsonFree(JItemValue val, const short vtype) {
   if(vtype != VAL_INT && vtype != VAL_NULL && vtype != VAL_BOOL
       && vtype != VAL_DOUBLE && vtype != VAL_FLOAT && vtype != VAL_UINT &&
       vtype != VAL_STRING) {
-    printf("Could not free type\n");
+    //printf("Could not free type\n");
     //free(val);
   }
   if(vtype != 0 && vtype != VAL_FLOAT && vtype != VAL_DOUBLE && vtype != VAL_NULL &&

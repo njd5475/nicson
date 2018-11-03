@@ -444,22 +444,21 @@ char jsonParseBool(Parser *p, short *type) {
 }
 
 JItemValue jsonParseNumber(Parser *p, short *type) {
-  double value = 0;
-  char signValue = '+';
+  double value = 0.0L;
+  int signValue = 1;
   if(p->cur->type == PLUS_MINUS) {
-    signValue = getCharAt(p, 0);
+    signValue = -1;
     consume(p);
   }
   if(p->cur->type == DIGIT) {
-    value = getCharAt(p, 0) - '0';
-    value *= (signValue == '-') ? -1 : 1;
+    value = signValue * (getCharAt(p, 0) - '0');
     consume(p);
 
     if(p->cur->type == DIGIT) {
       do {
         for(int i = 0; i < p->cur->count; ++i) {
-          value *= 10;
-          value += (getCharAt(p, i) - '0');
+          value *= 10.0d;
+          value = value + signValue * (getCharAt(p, i) - '0');
         }
         consume(p);
       } while(p->cur->type == DIGIT);
@@ -467,15 +466,15 @@ JItemValue jsonParseNumber(Parser *p, short *type) {
 
     if(p->cur->type == DOT) {
       consume(p);
-      double divisor = 10;
+      double divisor = 10.0d;
       if(p->cur->type == DIGIT) {
-        value = (getCharAt(p, 0) - '0') / divisor;
+        value += ((double)signValue * (double)(getCharAt(p, 0) - '0')) / divisor;
         consume(p);
         if(p->cur->type == DIGIT) {
           do {
             for(int i = 0; i < p->cur->count; ++i) {
               divisor *= 10;
-              value += (getCharAt(p, i) - '0') / divisor;
+              value = value + ((signValue * (getCharAt(p, i) - '0')) / divisor);
             }
             consume(p);
           } while(p->cur->type == DIGIT);
@@ -487,28 +486,28 @@ JItemValue jsonParseNumber(Parser *p, short *type) {
     }
 
     if(isTerm(p, "E") || isTerm(p, "e")) {
-      char sign = '+';
+      int sign = 1;
       if(p->cur->type == PLUS_MINUS) {
-        sign = getCharAt(p, 0);
+        sign = -1;
         consume(p);
       }
 
       if(p->cur->type == DIGIT) {
-        double power = (getCharAt(p, 0) - '0');
-        power *= (sign == '-' ? -1 : 1);
+        double power = (double)(getCharAt(p, 0) - '0');
+        power *= (sign == '-' ? -1.0d : 1.0d);
         consume(p);
 
         if(p->cur->type == DIGIT) {
           do {
             for(int i = 0; i < p->cur->count; ++i) {
-              power *= 10;
-              power += getCharAt(p, i);
+              power *= 10.0d;
+              power += sign * (double)(getCharAt(p, i) - '0');
             }
             consume(p);
           } while(p->cur->type == DIGIT);
         }
 
-        value *= pow(10, power);
+        value *= pow(10.0d, power);
       } else {
         UNEXPECTED_TOKEN(p);
         return (JItemValue) { 0 };
@@ -517,9 +516,10 @@ JItemValue jsonParseNumber(Parser *p, short *type) {
 
     //determine if we have a integer, float, or double
     JItemValue retVal = { 0 };
-    if(value <= FLT_MAX) {
+    double absValue = signValue * value;
+    if(absValue <= FLT_MAX) {
       //we have a float, check for decimals
-      if(value <= INT_MAX && !(value - floor(value) > 0)) {
+      if(absValue <= INT_MAX && !(absValue - floor(absValue) > 0)) {
         //we have an integer
         *type = VAL_INT;
         retVal.int_val = (int)value;
