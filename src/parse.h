@@ -75,14 +75,14 @@ void*       expectPairSeparator(Tok *start);
 
 void        jsonSetParserError(Parser *p, unsigned int, const char* err, const char *file, int ln);
 
-JValue*     jsonParseArray(Parser *p);
-JValue*     jsonParseObject(Parser *p);
+JArray*     jsonParseArray(Parser *p, short *type);
+JObject*    jsonParseObject(Parser *p);
 void        jsonParseMembers(Parser *p, JObject *obj);
 int         jsonParseQuotedString(Parser* parser, char quote);
-JValue*     jsonParseString(Parser *p);
-JValue*     jsonParseBool(Parser *p);
-JValue*     jsonParseNumber(Parser *p);
-JValue*     jsonParseValue(Parser *startAt);
+char*       jsonParseString(Parser *p);
+char        jsonParseBool(Parser *p, short *type);
+JItemValue  jsonParseNumber(Parser *p, short *type);
+JItemValue  jsonParseValue(Parser *startAt, short *type);
 
 void        jsonPrintParserInfo();
 void        consumeWhitespace(Parser *p);

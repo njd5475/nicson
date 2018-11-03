@@ -172,6 +172,31 @@ const char *strTokType(Tok *tok) {
   return 0;
 }
 
+int sizeOfType(const short type) {
+  if(type == VAL_OBJ) {
+    return sizeof(JObject);
+  }else if(type == VAL_INT) {
+    return sizeof(int);
+  }else if(type == VAL_UINT) {
+    return sizeof(unsigned int);
+  }else if(type == VAL_FLOAT) {
+    return sizeof(float);
+  }else if(type == VAL_DOUBLE) {
+    return sizeof(double);
+  }else if(type == VAL_BOOL) {
+    return sizeof(char);
+  }else if(type == VAL_BOOL_ARRAY ||
+      type == VAL_INT_ARRAY ||
+      type == VAL_DOUBLE_ARRAY ||
+      type == VAL_FLOAT_ARRAY ||
+      type == VAL_STRING_ARRAY ||
+      type == VAL_OBJ_ARRAY) {
+    return sizeof(JArray);
+  }else{
+    return 0;
+  }
+}
+
 void printTok(Tok *tok) {
   printf("Tok type=%s, count=%d at ln %d, col %d\n", strTokType(tok),
       tok->count, tok->line, tok->column);
@@ -231,7 +256,7 @@ int jsonParseQuotedString(Parser* p, char quote) {
   return size;
 }
 
-JValue *jsonParseObject(Parser *p) {
+JObject *jsonParseObject(Parser *p) {
 
   if(p->cur->type == OPEN_BRACE) {
     consume(p);
@@ -264,13 +289,13 @@ JValue *jsonParseObject(Parser *p) {
   } while(p->cur->type == COMMA);
 
   if(p->error) {
-    jsonFree(jsonObjectValue(obj));
+    jsonFree((JItemValue) { obj }, VAL_OBJ);
     return 0;
   }
 
   consume(p);
 
-  return jsonObjectValue(obj);
+  return obj;
 }
 
 void jsonParseMembers(Parser *p, JObject *obj) {
@@ -283,12 +308,13 @@ void jsonParseMembers(Parser *p, JObject *obj) {
   }
   jsonExpectPairSeparator(p);
   if(!p->error) {
-    JValue *val = jsonParseValue(p);
+    short type = 0;
+    JItemValue val = jsonParseValue(p, &type);
     if(!p->error) {
       char buf[size+1];
       memset(buf, '\0', size+1);
       jsonRead(buf, p, start, size);
-      jsonAddVal(obj, buf, val);
+      jsonAddVal(obj, buf, val, type);
     }
   } else {
     jsonPrintError(p);
@@ -309,76 +335,78 @@ void jsonExpectPairSeparator(Parser *p) {
   consumeWhitespace(p);
 }
 
-JValue *jsonParseValue(Parser *p) {
+JItemValue jsonParseValue(Parser *p, short *type) {
   int saved = p->cur->seek;
 
-  JValue *val = NULL;
+  JItemValue val = { 0 };
   if(p->cur->type == SINGLE_QUOTE || p->cur->type == DOUBLE_QUOTE) {
-    val = jsonParseString(p);
-    if(val && p->error == 0) {
+    val.string_val = jsonParseString(p);
+    *type = VAL_STRING;
+    if(val.string_val && p->error == 0) {
       return val;
     }
     jsonRewind(p, saved);
   } else if(p->cur->type == OPEN_BRACE) {
-    val = jsonParseObject(p);
+    val.object_val = jsonParseObject(p);
+    *type = VAL_OBJ;
 
-    if(val && !p->error) {
+    if(val.object_val && !p->error) {
       return val;
     }
 
-    if(val) {
-      jsonFree(val);
+    if(val.object_val) {
+      jsonFree(val, VAL_OBJ);
     }
 
     jsonRewind(p, saved);
   }else if(p->cur->type == OPEN_BRACKET) {
-    val = jsonParseArray(p);
+    val.array_val = jsonParseArray(p, type);
 
-    if(val && !p->error) {
+    if(val.array_val && !p->error) {
       return val;
     }
 
-    if(val) {
-      jsonFree(val);
+    if(val.array_val) {
+      jsonFree(val, *type);
     }
     jsonRewind(p, saved);
   }else if(p->cur->type == PLUS_MINUS || p->cur->type == DIGIT || p->cur->type == DOT) {
+    val = jsonParseNumber(p, type);
 
-    val = jsonParseNumber(p);
-
-    if(val && !p->error) {
+    if((val.ptr_val || type != 0) && !p->error) {
       return val;
     }
 
-    if(val) {
-      jsonFree(val);
+    if(val.ptr_val) {
+      jsonFree(val, *type);
     }
 
     jsonRewind(p, saved);
   }else if(p->cur->type == OTHER) {
-    val = jsonParseBool(p);
+    val.char_val = jsonParseBool(p, type);
 
-    if(val && !p->error) {
+    if((val.ptr_val || *type == VAL_BOOL) && !p->error) {
       return val;
     }
 
-    if(val) {
-      jsonFree(val);
+    if(val.ptr_val) {
+      jsonFree(val, *type);
     }
 
     jsonRewind(p, saved);
 
     if(isTerm(p, "null")) {
-      return jsonNullValue();
+      *type = VAL_NULL;
+      return (JItemValue) { 0 };
     } else {
       UNEXPECTED_TOKEN(p);
     }
   }
 
-  return 0;
+  return (JItemValue) { 0 };
 }
 
-JValue *jsonParseString(Parser *p) {
+char* jsonParseString(Parser *p) {
   Tok *cur = p->cur;
   int start = p->cur->seek+1;
   int size = -1;
@@ -392,25 +420,30 @@ JValue *jsonParseString(Parser *p) {
     char buf[size+1];
     memset(buf, '\0', size+1);
     jsonRead(buf, p, start, size);
-    JValue *val = jsonStringValue(buf, DUP);
-    return val;
+    return getOrCacheString(buf);
   }
   return 0;
 }
 
-JValue *jsonParseBool(Parser *p) {
+char true = 1;
+char false = 0;
+
+char jsonParseBool(Parser *p, short *type) {
   consumeWhitespace(p);
   if(isTerm(p, "true")) {
-    return jsonBoolValue(1);
+    *type = VAL_BOOL;
+    return true;
   } else if(isTerm(p, "false")) {
-    return jsonBoolValue(0);
+    *type = VAL_BOOL;
+    return false;
   } else {
+    *type = 0;
     UNEXPECTED_TOKEN(p)
   }
   return 0;
 }
 
-JValue *jsonParseNumber(Parser *p) {
+JItemValue jsonParseNumber(Parser *p, short *type) {
   double value = 0;
   char signValue = '+';
   if(p->cur->type == PLUS_MINUS) {
@@ -449,7 +482,7 @@ JValue *jsonParseNumber(Parser *p) {
         }
       } else {
         UNEXPECTED_TOKEN(p);
-        return 0;
+        return (JItemValue){ 0 };
       }
     }
 
@@ -478,27 +511,34 @@ JValue *jsonParseNumber(Parser *p) {
         value *= pow(10, power);
       } else {
         UNEXPECTED_TOKEN(p);
-        return 0;
+        return (JItemValue) { 0 };
       }
     }
 
-//determine if we have a integer, float, or double
+    //determine if we have a integer, float, or double
+    JItemValue retVal = { 0 };
     if(value <= FLT_MAX) {
       //we have a float, check for decimals
       if(value <= INT_MAX && !(value - floor(value) > 0)) {
         //we have an integer
-        return jsonIntValue((int) value);
+        *type = VAL_INT;
+        retVal.int_val = (int)value;
+      }else{
+        *type = VAL_FLOAT;
+        retVal.float_val = (float)value;
       }
+    }else{
 
-      return jsonFloatValue((float) value);
+      // otherwise we have a double
+      *type = VAL_DOUBLE;
+      retVal.double_val = value;
     }
 
-    // otherwise we have a double
-    return jsonDoubleValue(value);
+    return retVal;
   }
 
   UNEXPECTED_TOKEN(p);
-  return 0;
+  return (JItemValue) { 0 };
 }
 
 void jsonRewind(Parser *p, int saved) {
@@ -532,10 +572,11 @@ void jsonRewind(Parser *p, int saved) {
   p->error_tok = 0;
 }
 
-JValue *jsonParseArray(Parser *p) {
+JArray* jsonParseArray(Parser *p, short *type) {
   typedef struct ArrayVal {
-    JValue *val;
-    struct ArrayVal *next;
+    JItemValue       val;
+    int              type : 4;
+    struct ArrayVal* next;
   } ArrayVal;
 
 #define ARRAY_TYPE(t) \
@@ -564,7 +605,9 @@ JValue *jsonParseArray(Parser *p) {
     if(p->cur->type == CLOSE_BRACKET) {
       break;
     }
-    curVal->val = jsonParseValue(p);
+    short valType = 0;
+    curVal->val = jsonParseValue(p, &valType);
+    curVal->type = valType;
 
     if(curVal == NULL || p->error) {
       while(head != 0) {
@@ -577,17 +620,15 @@ JValue *jsonParseArray(Parser *p) {
 
     // could make this a ternary but I won't
     if(singleValueType == -1) {
-      singleValueType = ARRAY_TYPE(curVal->val->value_type);
+      singleValueType = ARRAY_TYPE(curVal->type);
     }
-    if(singleValueType != ARRAY_TYPE(curVal->val->value_type)) {
+    if(singleValueType != ARRAY_TYPE(curVal->type)) {
       // as soon as it's not the same it's mixed
       singleValueType = VAL_MIXED_ARRAY;
     }
-    singleValueType = ARRAY_TYPE(curVal->val->value_type);
 
     nextVal = malloc(sizeof(ArrayVal));
     memset(nextVal, 0, sizeof(ArrayVal));
-    nextVal->val = 0;
     curVal->next = nextVal;
     curVal = nextVal;
     ++count;
@@ -604,89 +645,55 @@ JValue *jsonParseArray(Parser *p) {
   consume(p);
 
   //Now we know how many we have lets allocate
-  JValue *arrayVal = malloc(sizeof(JValue));
+  JArray *arrayVal = malloc(sizeof(JArray));
+  memset(arrayVal, 0, sizeof(JArray));
 
   if(count == 0) {
     if(curVal) {
       free(curVal);
     }
-    arrayVal->size = 0;
-    arrayVal->value = 0;
-    arrayVal->value_type = VAL_MIXED_ARRAY;
+    arrayVal->count = 0;
+    arrayVal->_internal.vItems = 0;
+    *type = VAL_MIXED_ARRAY;
     return arrayVal;
   }
 
-  JValue** arry = malloc(sizeof(JValue*) * count);
-  arrayVal->size = sizeof(JValue*) * count;
-  arrayVal->value = arry;
-  curVal = 0;
-  curVal = head;
-  int index = 0;
-  ArrayVal *deletable = curVal;
-  while(curVal != 0) {
-    if(curVal->val) {
-      arry[index] = curVal->val;
+  *type = singleValueType;
+  if(singleValueType == VAL_MIXED_ARRAY) {
+    arrayVal->type = singleValueType;
+    arrayVal->count = count;
+    arrayVal->_internal.vItems = (JArrayItem*)malloc(sizeof(JArrayItem)*count);
+
+    curVal = head;
+    int countDown = count;
+    JArrayItem *item = 0;
+    while(curVal && countDown > 0) {
+      item = &arrayVal->_internal.vItems[countDown-1];
+      item->type = curVal->type;
+      item->value = curVal->val;
+      ArrayVal *toDel = curVal;
+      curVal = curVal->next;
+      free(toDel);
+      countDown--;
     }
 
-    deletable = curVal;
-    curVal = curVal->next;
-    free(deletable);
-    ++index;
-  }
-  arrayVal->value_type = singleValueType;
-
-  if(arrayVal->value_type == VAL_INT_ARRAY) {
-    //convert to array of ints
-    int *integers = malloc(sizeof(*integers) * count);
-    arrayVal->size = sizeof(*integers) * count;
-    for(int i = 0; i < count; ++i) {
-      int num = (int) arry[i]->value;
-      integers[i] = num;
-      jsonFree(arry[i]);
+  }else if(singleValueType != VAL_MIXED_ARRAY) {
+    JItemValue *itemArray = malloc(sizeof(JItemValue) * count);
+    curVal = head;
+    int countDown = count;
+    JArrayItem *item = 0;
+    while(curVal && countDown > 0) {
+      itemArray[count-countDown] = curVal->val;
+      ArrayVal *toDel = curVal;
+      curVal = curVal->next;
+      free(toDel);
+      countDown--;
     }
-    arrayVal->value = integers;
-  } else if(arrayVal->value_type == VAL_FLOAT_ARRAY) {
-    //convert to array of floats
-    float *floats = malloc(sizeof(*floats) * count);
-    arrayVal->size = sizeof(*floats) * count;
-    for(int i = 0; i < count; ++i) {
-      float num = *(float*) &arry[i]->value;
-      floats[i] = num;
-      jsonFree(arry[i]);
-    }
-    arrayVal->value = floats;
-  } else if(arrayVal->value_type == VAL_DOUBLE_ARRAY) {
-    //convert to array of doubles
-    double *doubles = malloc(sizeof(double*) * count);
-    arrayVal->size = sizeof(float*) * count;
-    for(int i = 0; i < count; ++i) {
-      double num = *(double*) &arry[i]->value;
-      doubles[i] = num;
-      jsonFree(arry[i]);
-    }
-    arrayVal->value = doubles;
-  } else if(arrayVal->value_type == VAL_STRING_ARRAY) {
-    char **strings = malloc(sizeof(*strings) * count);
-    arrayVal->size = sizeof(*strings) * count;
-    for(int i = 0; i < count; ++i) {
-      char *string = (char*) arry[i]->value;
-      strings[i] = string;
-      free(arry[i]);
-    }
-    arrayVal->value = strings;
-  } else if(arrayVal->value_type == VAL_BOOL_ARRAY) {
-    char *bools = malloc(sizeof(char) * count);
-    arrayVal->size = sizeof(char) * count;
-    for(int i = 0; i < count; ++i) {
-      bools[i] = *((char*)&arry[i]->value);
-      jsonFree(arry[i]);
-    }
-    arrayVal->value = bools;
+    arrayVal->_internal.items = itemArray;
+    arrayVal->type = *type;
+    arrayVal->count = count;
   }
 
-  if(arrayVal->value_type != VAL_MIXED_ARRAY) {
-    free(arry);
-  }
 
   return arrayVal;
 }
@@ -705,14 +712,14 @@ void consume(Parser *p) {
   p->cur = next(p);
 }
 
-JValue *jsonParse(const char *filename) {
+JItemValue jsonParse(const char *filename, short *type) {
   FILE *file = fopen(filename, "r");
-  return jsonParseF(file);
+  return jsonParseF(file, type);
 }
 
-JValue *jsonParseF(FILE *file) {
+JItemValue jsonParseF(FILE *file, short *type) {
   if(!file) {
-    return 0;
+    return (JItemValue) { 0 };
   }
   Parser p;
   memset(&p, 0, sizeof(p));
@@ -722,18 +729,19 @@ JValue *jsonParseF(FILE *file) {
   Tok *first = p.first = p.cur = ffirst(&p);
   if(p.cur) {
     consumeWhitespace(&p);
-    JValue *val = NULL;
+    void *val = NULL;
     if(p.cur->type == OPEN_BRACE) {
+      *type = VAL_OBJ;
       val = jsonParseObject(&p);
     } else if(p.cur->type == OPEN_BRACKET) {
-      val = jsonParseArray(&p);
+      val = jsonParseArray(&p, type);
     }
 
     if(val && !p.error) {
       free(p.error_message);
       free(first);
       fclose(file);
-      return val;
+      return (JItemValue) { val };
     } else {
       jsonPrintError(&p);
     }
@@ -745,7 +753,7 @@ JValue *jsonParseF(FILE *file) {
   free(p.error_message);
   free(first);
   fclose(file);
-  return 0;
+  return (JItemValue) { 0 };
 }
 
 char getCharAt(Parser *p, int index) {
@@ -765,7 +773,7 @@ char getCharAt(Parser *p, int index) {
 void jsonPrintParserInfo() {
   printf("Parser struct size %d\n", (unsigned int) sizeof(Parser));
   printf("Token struct size  %d\n", (unsigned int) sizeof(Tok));
-  printf("Value struct size  %d\n", (unsigned int) sizeof(JValue));
+  printf("Array struct size  %d\n", (unsigned int) sizeof(JArray));
   printf("Entry struct size  %d\n", (unsigned int) sizeof(JEntry));
   printf("Object struct size %d\n", (unsigned int) sizeof(JObject));
 }

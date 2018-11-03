@@ -6,62 +6,58 @@ extern "C" {
 };
 
 #define NO_DUP 0
-TEST(JsonObjectManipulation, shouldHaveAValidJValue) {
-  JValue *val = jsonStringValue("Success", DUP);
-  EXPECT_TRUE(val != NULL);
-  EXPECT_EQ(val->value_type, VAL_STRING);
-  EXPECT_EQ(val->size, 8);
-  jsonFree(val);
-}
 
 TEST(JsonObjectManipulation, shouldBuildAnewObjectAndAddAKey) {
     JObject *obj = jsonNewObject();
     EXPECT_TRUE(obj != NULL);
 
-    jsonAddString(obj, "status", strdup("Success"));
+    jsonAddString(obj, "status", "Success");
     EXPECT_EQ(obj->size, 1);
-    jsonFree(jsonObjectValue(obj));
+    JItemValue val;
+    val.object_val = obj;
+    jsonFree(val, VAL_OBJ);
 }
 
 TEST(JsonObjectManipulation, shouldGetKeyValue) {
   JObject *obj = jsonNewObject();
   EXPECT_TRUE(obj != NULL);
 
-  jsonAddString(obj, "status", strdup("Success"));
-  JValue *val = jsonGet(obj, "status");
-  EXPECT_TRUE(val != NULL);
-  EXPECT_EQ(val->value_type, VAL_STRING);
-  EXPECT_EQ(val->size, 8);
-  EXPECT_STREQ((const char*)val->value, "Success");
-  jsonFree(jsonObjectValue(obj));
+  jsonAddString(obj, "status", "Success");
+  short type = 0;
+  JItemValue val = jsonGet(obj, "status", &type);
+  EXPECT_TRUE(val.string_val != NULL);
+  EXPECT_EQ(type, VAL_STRING);
+  EXPECT_STREQ(val.string_val, "Success");
+  jsonFree(val, type);
 }
 
 TEST(JsonObjectManipulation, shouldGetKeyValueOutOfKeys) {
   JObject *obj = jsonNewObject();
   EXPECT_TRUE(obj != 0);
 
-  jsonAddString(obj, "status2", strdup("Not Successful"));
-  jsonAddString(obj, "status", strdup("Success"));
-  JValue *val = jsonGet(obj, "status");
-  EXPECT_TRUE(val != NULL);
-  EXPECT_EQ(val->value_type, VAL_STRING);
-  EXPECT_EQ(val->size, 8);
-  EXPECT_STREQ((const char*)val->value, "Success");
-  jsonFree(jsonObjectValue(obj));
+  jsonAddString(obj, "status2", "Not Successful");
+  jsonAddString(obj, "status", "Success");
+  short type;
+  JItemValue val = jsonGet(obj, "status", &type);
+  EXPECT_TRUE(val.string_val != NULL);
+  EXPECT_EQ(type, VAL_STRING);
+  EXPECT_STREQ(val.string_val, "Success");
+  jsonFree(val, type);
 }
 
 TEST(JsonObjectManipulation, shouldGetStringOutOfObjectAsStored) {
   JObject *obj = jsonNewObject();
   EXPECT_EQ(obj->size, 0);
 
-  jsonAddString(obj, "status", strdup("Success"));
-  jsonAddString(obj, "hello", strdup("it's hello"));
-  jsonAddString(obj, "message", strdup("it's message"));
+  jsonAddString(obj, "status", "Success");
+  jsonAddString(obj, "hello", "it's hello");
+  jsonAddString(obj, "message", "it's message");
   const char* out = jsonString(obj, "status");
   EXPECT_STREQ(out, "Success");
   EXPECT_STREQ(jsonString(obj, "hello"), "it's hello");
   EXPECT_STREQ(jsonString(obj, "message"), "it's message");
-  jsonFree(jsonObjectValue(obj));
+  JItemValue val = { obj };
+  jsonFree(val, VAL_OBJ);
 }
 
 TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
@@ -82,7 +78,7 @@ TEST(JsonObjectManipulation, shouldGetObjectValueOutOfNestedKeys) {
 
   JObject* found = jsonObject(obj, "nestedObject1.nestedObject2.nestedObject3");
   EXPECT_EQ(found, nestedThree);
-  jsonFree(jsonObjectValue(obj));
+  jsonFree( (JItemValue) { obj }, VAL_OBJ);
 }
 
 TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
@@ -99,7 +95,7 @@ TEST(JsonObjectManipulation, shouldExpandObjectIfMaxProbesReached) {
     sprintf(buf, "Key %d", i);
     EXPECT_EQ(jsonInt(expandable, buf), i);
   }
-  jsonFree(jsonObjectValue(expandable));
+  jsonFree( (JItemValue) { expandable }, VAL_OBJ);
 }
 
 TEST(JsonObjectManipulation, shouldGetStringsFromCache) {
