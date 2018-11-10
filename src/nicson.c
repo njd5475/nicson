@@ -35,11 +35,16 @@ int main(int count, const char**argv) {
 	}
 	
 	if(count >= 3) {
-	  JObject *obj = val.object_val;
-	  if(type == VAL_INT) {
-	    printf("%s: %d\n", argv[2], jsonInt(obj, argv[2]));
-	  }else if(type == VAL_STRING) {
-	    printf("%s: %s\n", argv[2], jsonString(obj, argv[2]));
+	  short extractType = 0;
+	  JItemValue item = jsonGet(val.object_val, argv[2], &extractType);
+	  if(extractType == VAL_INT) {
+	    printf("%s: %d\n", argv[2], item.int_val);
+	  }else if(extractType == VAL_FLOAT) {
+	    printf("%s: %f\n", argv[2], item.float_val);
+	  }else if(extractType == VAL_DOUBLE) {
+	    printf("%s: %f\n", argv[2], item.double_val);
+	  }else if(extractType == VAL_STRING) {
+	    printf("%s: %s\n", argv[2], item.string_val);
 	  }else{
 	    fprintf(stderr, "Error: Could not find key '%s'\n", argv[2]);
 	  }
