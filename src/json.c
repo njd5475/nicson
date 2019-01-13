@@ -529,6 +529,39 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
       }
     }
     fprintf(io, "]");
+  } else if (type == VAL_INT_ARRAY) {
+    fprintf(io, "[");
+    JItemValue *ints = value->array_val->_internal.items;
+    for(int i = 0; i < value->array_val->count; ++i) {
+      JItemValue *intVal = &ints[i];
+      jsonPrintEntry(io, VAL_INT, intVal, tabs, tabInc);
+      if(i != value->array_val->count-1) {
+        fprintf(io, ",");
+      }
+    }
+    fprintf(io, "]");
+  } else if (type == VAL_FLOAT_ARRAY) {
+    fprintf(io, "[");
+    JItemValue *floats = value->array_val->_internal.items;
+    for(int i = 0; i < value->array_val->count; ++i) {
+      JItemValue *floatVal = &floats[i];
+      jsonPrintEntry(io, VAL_FLOAT, floatVal, tabs, tabInc);
+      if(i != value->array_val->count-1) {
+        fprintf(io, ",");
+      }
+    }
+    fprintf(io, "]");
+  } else if (type == VAL_DOUBLE_ARRAY) {
+    fprintf(io, "[");
+    JItemValue *doubles = value->array_val->_internal.items;
+    for(int i = 0; i < value->array_val->count; ++i) {
+      JItemValue *doubleVal = &doubles[i];
+      jsonPrintEntry(io, VAL_DOUBLE, doubleVal, tabs, tabInc);
+      if(i != value->array_val->count-1) {
+        fprintf(io, ",");
+      }
+    }
+    fprintf(io, "]");
   } else if (type == VAL_OBJ) {
     jsonPrintObjectTabs(io, value->object_val, tabs, tabInc);
   }
