@@ -1,6 +1,6 @@
 #include "json.h"
 
-#include <stdio.h>
+#include <libio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -509,7 +509,7 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
   } else if (type == VAL_FLOAT) {
     fprintf(io, "%f", value->float_val);
   } else if (type == VAL_DOUBLE) {
-    fprintf(io, "%f", value->double_val);
+    fprintf(io, "%e", value->double_val);
   } else if (type == VAL_STRING) {
     fprintf(io, "\"%s\"", value->string_val);
   } else if (type == VAL_BOOL) {
@@ -557,6 +557,17 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     for(int i = 0; i < value->array_val->count; ++i) {
       JItemValue *doubleVal = &doubles[i];
       jsonPrintEntry(io, VAL_DOUBLE, doubleVal, tabs, tabInc);
+      if(i != value->array_val->count-1) {
+        fprintf(io, ",");
+      }
+    }
+    fprintf(io, "]");
+  } else if (type == VAL_MIXED_ARRAY) {
+    fprintf(io, "[");
+    JArrayItem *values = value->array_val->_internal.vItems;
+    for(int i = 0; i < value->array_val->count; ++i) {
+      JArrayItem *val = &values[i];
+      jsonPrintEntry(io, val->type, &val->value, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }

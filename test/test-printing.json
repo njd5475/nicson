@@ -21,6 +21,7 @@
       "integrity": "sha1-NuLSO9fAGeit5I/IV/WjdkMeKlQ=",
       "dev": [true,false,true,true,true,false],
       "intArray": [10,12,113,14,15,16,17,18],
+      "mixed": [{},true,10.09,12,1.09E108,{"someKEy":true}],
       "requires": {
         "chalk": "1.1.3",
         "convert-source-map": "1.5.1",
