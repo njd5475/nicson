@@ -19,7 +19,7 @@
       "version": "9.4.3",
       "resolved": "https://registry.npmjs.org/@paulcbetts/vueify/-/vueify-9.4.3.tgz",
       "integrity": "sha1-NuLSO9fAGeit5I/IV/WjdkMeKlQ=",
-      "dev": true,
+      "dev": [true,false,true,true,true,false],
       "requires": {
         "chalk": "1.1.3",
         "convert-source-map": "1.5.1",

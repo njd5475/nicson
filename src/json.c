@@ -438,8 +438,11 @@ char* jsonBoolArray(const JObject *obj, const char* keys) {
   short type = 0;
   JArray *val = jsonGet(obj, keys, &type).array_val;
   if (val && type == VAL_BOOL_ARRAY && val->count > 0) {
+    JItemValue *items = val->_internal.items;
     char *ret = malloc(val->count);
-    memcpy(ret, val->_internal.items, sizeof(char)*val->count);
+    for(int i = 0; i < val->count; ++i) {
+      ret[i] = (&items[i])->char_val;
+    }
     return ret;
   }
   return NULL;
@@ -500,7 +503,38 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
   return found;
 }
 
-void jsonPrintObjectTabs(const FILE *io, const JObject* obj, int tabs, int tabInc) {
+void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsigned int tabs, unsigned int tabInc) {
+  if (type == VAL_INT) {
+    fprintf(io, "%d", value->int_val);
+  } else if (type == VAL_FLOAT) {
+    fprintf(io, "%f", value->float_val);
+  } else if (type == VAL_DOUBLE) {
+    fprintf(io, "%f", value->double_val);
+  } else if (type == VAL_STRING) {
+    fprintf(io, "\"%s\"", value->string_val);
+  } else if (type == VAL_BOOL) {
+    if (value->char_val) {
+      fprintf(io, "%s", "true");
+    } else {
+      fprintf(io, "%s", "false");
+    }
+  } else if (type == VAL_BOOL_ARRAY) {
+    fprintf(io, "[");
+    JItemValue *bools = value->array_val->_internal.items;
+    for(int i = 0; i < value->array_val->count; ++i) {
+      JItemValue *boolVal = &bools[i];
+      jsonPrintEntry(io, VAL_BOOL, boolVal, tabs, tabInc);
+      if(i != value->array_val->count-1) {
+        fprintf(io, ",");
+      }
+    }
+    fprintf(io, "]");
+  } else if (type == VAL_OBJ) {
+    jsonPrintObjectTabs(io, value->object_val, tabs, tabInc);
+  }
+}
+
+void jsonPrintObjectTabs(const FILE *io, const JObject* obj, unsigned int tabs, unsigned int tabInc) {
   tabs+=tabInc;
   char strTabs[tabs+1];
   memset(strTabs, ' ', tabs+1);
@@ -521,25 +555,7 @@ void jsonPrintObjectTabs(const FILE *io, const JObject* obj, int tabs, int tabIn
         comma = ""; //last element
       }
       fprintf(io, "%s\"%s\": ", strTabs, entry->name);
-      if(type == VAL_INT) {
-        fprintf(io, "%d", entry->value.int_val);
-      }else if(type == VAL_FLOAT) {
-        fprintf(io, "%f", entry->value.float_val);
-      }else if(type == VAL_DOUBLE) {
-        fprintf(io, "%f", entry->value.double_val);
-      }else if(type == VAL_STRING) {
-        fprintf(io, "\"%s\"", entry->value.string_val);
-      }else if(type == VAL_BOOL) {
-        if(entry->value.char_val) {
-          fprintf(io, "%s", "true");
-        }else{
-          fprintf(io, "%s", "false");
-        }
-      }else if(type == VAL_BOOL_ARRAY) {
-
-      }else if(type == VAL_OBJ) {
-        jsonPrintObjectTabs(io, entry->value.object_val, tabs, tabInc);
-      }
+      jsonPrintEntry(io, entry->value_type, &entry->value, tabs, tabInc);
       fprintf(io, "%s\n", comma);
     }
   }

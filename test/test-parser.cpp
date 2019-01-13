@@ -86,7 +86,7 @@ TEST(JsonParserWorks, shouldParseNullvalue) {
 TEST(JsonParserWorks, shouldParseBoolArray) {
   char *deleteMe = NULL;
   short type = 0;
-  JItemValue val = jsonParseF(inlineJson("{\"parsesBoolArray\": [\ntrue\n,\n false\n]\n}", &deleteMe), &type);
+  JItemValue val = jsonParseF(inlineJson("{\"parsesBoolArray\": [\ntrue\n,\n false,true,true,true,false\n]\n}", &deleteMe), &type);
   ASSERT_NE(NULL_JVAL.object_val, val.object_val);
   EXPECT_EQ(type, VAL_OBJ);
   
@@ -94,10 +94,36 @@ TEST(JsonParserWorks, shouldParseBoolArray) {
   char *bools = jsonBoolArray(obj, "parsesBoolArray");
   EXPECT_EQ(bools[0], 1);
   EXPECT_EQ(bools[1], 0);
+  EXPECT_EQ(bools[2], 1);
+  EXPECT_EQ(bools[3], 1);
+  EXPECT_EQ(bools[4], 1);
+  EXPECT_EQ(bools[5], 0);
   jsonFree(val, type);
   free(bools);
   free(deleteMe);
 }
+
+
+TEST(JsonParserWorks, shouldParseBoolArraySequence1) {
+  char *deleteMe = NULL;
+  short type = 0;
+  JItemValue val = jsonParseF(inlineJson("{\"dev\": [true,false,true,true,true,false], \"someOtherProp\":\"1.2.0\"\n}", &deleteMe), &type);
+  ASSERT_NE(NULL_JVAL.object_val, val.object_val);
+  EXPECT_EQ(type, VAL_OBJ);
+
+  JObject *obj = val.object_val;
+  char *bools = jsonBoolArray(obj, "dev");
+  EXPECT_EQ(bools[0], 1);
+  EXPECT_EQ(bools[1], 0);
+  EXPECT_EQ(bools[2], 1);
+  EXPECT_EQ(bools[3], 1);
+  EXPECT_EQ(bools[4], 1);
+  EXPECT_EQ(bools[5], 0);
+  jsonFree(val, type);
+  free(bools);
+  free(deleteMe);
+}
+
 
 TEST(JsonParserWorks, shouldParseBoolArrayWithNewLines) {
   char *deleteMe = NULL;

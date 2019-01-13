@@ -681,7 +681,6 @@ JArray* jsonParseArray(Parser *p, short *type) {
     JItemValue *itemArray = malloc(sizeof(JItemValue) * count);
     curVal = head;
     int countDown = count;
-    JArrayItem *item = 0;
     while(curVal && countDown > 0) {
       itemArray[count-countDown] = curVal->val;
       ArrayVal *toDel = curVal;
