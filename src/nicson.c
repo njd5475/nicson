@@ -45,6 +45,8 @@ int main(int count, const char**argv) {
 	    printf("%s: %f\n", argv[2], item.double_val);
 	  }else if(extractType == VAL_STRING) {
 	    printf("%s: %s\n", argv[2], item.string_val);
+	  }else if(extractType == VAL_OBJ) {
+	    jsonPrintObject(stdout, item.object_val);
 	  }else{
 	    fprintf(stderr, "Error: Could not find key '%s'\n", argv[2]);
 	  }

@@ -97,6 +97,8 @@ double**      jsonDoubleArray(const JObject *obj, const char* keys);
 char**        jsonStringArray(const JObject *obj, const char* keys);
 JObject*      jsonObject(const JObject *obj, const char* keys);
 
+void          jsonPrintObject(const FILE *io, const JObject *obj);
+
 void          jsonFree(JItemValue val, const short vtype);
 
 // miscellaneous

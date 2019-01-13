@@ -2,7 +2,7 @@
      
      {
 	"message": "Hello World!",
-	"nested" :    { "type" : "my \"Obj\" last"},
+	"nested" :    { "type" : "my \"Obj\" last", "num": 10, "keyWithALongName": { "someReallyLongName": "some value"}},
 	"someIntArray": [1,2,3,4,5],
 	"someStrArray": ["read","write","math"],
 	"someFloat": "180.01234",

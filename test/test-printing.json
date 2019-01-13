@@ -1,0 +1,38 @@
+{
+"dependencies": {
+    "@paulcbetts/mime-db": {
+      "version": "1.22.4",
+      "resolved": "https://registry.npmjs.org/@paulcbetts/mime-db/-/mime-db-1.22.4.tgz",
+      "integrity": "sha1-uP+OeAh6QJkpkPcC+NnGVJm+LvE=",
+      "dev": true
+    },
+    "@paulcbetts/mime-types": {
+      "version": "2.1.10",
+      "resolved": "https://registry.npmjs.org/@paulcbetts/mime-types/-/mime-types-2.1.10.tgz",
+      "integrity": "sha1-iqUx8faPrICELnmu/4Z5fDCSJ90=",
+      "dev": true,
+      "requires": {
+        "@paulcbetts/mime-db": "1.22.4"
+      }
+    },
+    "@paulcbetts/vueify": {
+      "version": "9.4.3",
+      "resolved": "https://registry.npmjs.org/@paulcbetts/vueify/-/vueify-9.4.3.tgz",
+      "integrity": "sha1-NuLSO9fAGeit5I/IV/WjdkMeKlQ=",
+      "dev": true,
+      "requires": {
+        "chalk": "1.1.3",
+        "convert-source-map": "1.5.1",
+        "cssnano": "3.10.0",
+        "hash-sum": "1.0.2",
+        "lru-cache": "4.1.1",
+        "object-assign": "4.1.1",
+        "source-map": "0.5.7",
+        "through": "2.3.8",
+        "vue-hot-reload-api": "2.2.4",
+        "vue-template-compiler": "2.5.13",
+        "vue-template-es2015-compiler": "1.6.0"
+      }
+    }
+  }
+ }

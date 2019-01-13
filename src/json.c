@@ -121,17 +121,20 @@ JObject *jsonAddVal(JObject *obj, const char *name, JItemValue value, short type
       printf(stderr, "WARNING: Could not register cleanup function!");
     }
   }
+  char *cached = NULL;
   if(stringCache != NULL && stringCache != obj) {
-    char *cached = NULL;
     cached = jsonString(stringCache, name);
     if(cached == NULL) {
       cached = strdup(name);
       jsonAddString(stringCache, cached, cached);
-      name = cached;
     }
   }
   JEntry *entry = malloc(sizeof(JEntry));
-  entry->name = name;
+  if(cached) {
+    entry->name = cached;
+  }else{
+    entry->name = strdup(name);
+  }
   entry->value_type = type;
   entry->value = value;
   entry->probes = 1;
@@ -495,6 +498,57 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
   }
   free(key);
   return found;
+}
+
+void jsonPrintObjectTabs(const FILE *io, const JObject* obj, int tabs, int tabInc) {
+  tabs+=tabInc;
+  char strTabs[tabs+1];
+  memset(strTabs, ' ', tabs+1);
+  strTabs[tabs] = '\0';
+
+  fprintf(io, "{\n");
+  unsigned char type = -1;
+  JEntry* entry;
+
+  int count = 0;
+  for(int i = 0; i < obj->_arraySize; ++i) {
+    entry = obj->entries[i];
+    if(entry) {
+      ++count;
+      type = entry->value_type;
+      char *comma = ",";
+      if(count == obj->size) {
+        comma = ""; //last element
+      }
+      fprintf(io, "%s\"%s\": ", strTabs, entry->name);
+      if(type == VAL_INT) {
+        fprintf(io, "%d", entry->value.int_val);
+      }else if(type == VAL_FLOAT) {
+        fprintf(io, "%f", entry->value.float_val);
+      }else if(type == VAL_DOUBLE) {
+        fprintf(io, "%f", entry->value.double_val);
+      }else if(type == VAL_STRING) {
+        fprintf(io, "\"%s\"", entry->value.string_val);
+      }else if(type == VAL_BOOL) {
+        if(entry->value.char_val) {
+          fprintf(io, "%s", "true");
+        }else{
+          fprintf(io, "%s", "false");
+        }
+      }else if(type == VAL_BOOL_ARRAY) {
+
+      }else if(type == VAL_OBJ) {
+        jsonPrintObjectTabs(io, entry->value.object_val, tabs, tabInc);
+      }
+      fprintf(io, "%s\n", comma);
+    }
+  }
+  strTabs[tabs-tabInc] = '\0';
+  fprintf(io, "%s}", strTabs);
+}
+
+void jsonPrintObject(const FILE *io, const JObject* obj) {
+  jsonPrintObjectTabs(io, obj, 0, 2);
 }
 
 void jsonFree(JItemValue val, const short vtype) {
