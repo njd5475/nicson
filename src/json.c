@@ -185,6 +185,9 @@ JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
 }
 
 JItemValue _jsonGetObjVal(const JObject *obj, const char* keys, short *type) {
+  if(!keys) {
+    return (JItemValue){ 0 };
+  }
   int keyhash = fnvstr(keys);
   int index = keyhash % obj->_arraySize;
 

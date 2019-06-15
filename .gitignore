@@ -1,10 +1,18 @@
 .settings
-gmon.out
 *.o
 *.d
 *.gcda
 *.gcno
+callgraph*.dot
+callgraph*.dot.ps
+gmon.out
+gprof.data
+massif.out*
+callgrind.out*
 
 /Release/nicson
 /Tests/nicson-test
 /Debug/nicson-debug
+/Release/
+/Debug/
+/Tests/
