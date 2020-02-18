@@ -82,6 +82,7 @@ JItemValue    jsonParseF(FILE *file, short *type);
 const char*   jsonParserError();
 void          jsonPrintError();
 JObject*      jsonNewObject();
+JEntry*       jsonNewArray();
 JItemValue    jsonGet(const JObject *obj, const char *keys, short *type);
 int           jsonInt(const JObject *obj, const char* keys);
 unsigned int  jsonUInt(const JObject *obj, const char* keys);

@@ -7,7 +7,7 @@
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
-
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -33,7 +33,7 @@ typedef enum SEARCH_TYPE {
  *
  * Examples:
  *
- *  Array Range: key.[0-5].*.key.*.*match.hello*world.end*.*hello*world*
+ *  Array Range: key.[0-5].*.key.*.*match.hello*world.end*.[4,6,1234].*hello*world*
  *
  */
 typedef struct KeySearch {
@@ -44,11 +44,13 @@ typedef struct KeySearch {
     const char *keyStr;
     int arrayIndex;
     struct range {
-      int start;
-      int end;
+      int32_t start;
+      int32_t end;
     } range;
   } meta;
 } KeySearch;
+
+JItemValue query(JObject *obj, const char *key, int *type);
 
 int main(int count, const char**argv) {
 	if(count < 1) {
@@ -61,6 +63,7 @@ int main(int count, const char**argv) {
 	char useStandardIn = 1;
 	char findByArg = 0;
 	char printHelpAndExit = 0;
+	char interpKey = 0;
 
   if(argv[1][0] == '-') {
     //we have options
@@ -70,11 +73,19 @@ int main(int count, const char**argv) {
       wholeFilePrint = 1;
       useStandardIn = 0;
     }else if(argv[1][1] == 'e') {
+      //find by argument
       fileArgNum = 2;
       wholeFilePrint = 0;
       findByArg = 1;
       useStandardIn = 0;
       keyArgNum = 3;
+    }else if(argv[1][1] == 'E') {
+      fileArgNum = 2;
+      wholeFilePrint = 0;
+      findByArg = 1;
+      useStandardIn = 0;
+      keyArgNum = 3;
+      interpKey = 1;
     }else if(argv[1][1] == 'h') {
       printHelpAndExit = 1;
     }
@@ -119,8 +130,15 @@ int main(int count, const char**argv) {
 	
 	if(count >= 3 && (!wholeFilePrint || findByArg)) {
 	  const char *key = argv[keyArgNum];
-	  short extractType = 0;
-	  JItemValue item = jsonGet(val.object_val, key, &extractType);
+    JItemValue item;
+    short extractType = 0;
+
+	  if(interpKey) {
+	    item = query(val.object_val, key, &extractType);
+	  }else{
+	    item = jsonGet(val.object_val, key, &extractType);
+	  }
+
 	  if(extractType == VAL_INT) {
 	    printf("%s: %d\n", key, item.int_val);
 	  }else if(extractType == VAL_FLOAT) {
@@ -131,6 +149,9 @@ int main(int count, const char**argv) {
 	    printf("%s: %s\n", key, item.string_val);
 	  }else if(extractType == VAL_OBJ) {
 	    jsonPrintObject(stdout, item.object_val);
+	  }else if(extractType == VAL_BOOL_ARRAY || extractType == VAL_DOUBLE_ARRAY || extractType == VAL_FLOAT_ARRAY ||
+	      extractType == VAL_INT_ARRAY || extractType == VAL_MIXED_ARRAY || extractType == VAL_STRING_ARRAY) {
+	    jsonPrintEntry(stdout, extractType, &item, 3, 0);
 	  }else{
 	    fprintf(stderr, "Error: Could not find key '%s'\n", key);
 	  }
@@ -138,4 +159,19 @@ int main(int count, const char**argv) {
 	
 	jsonFree((JItemValue)val, type);
 	return EXIT_SUCCESS;
+}
+
+JItemValue query(JObject *obj, const char *key, int *type) {
+  JItemValue val;
+  memset(&val, 0, sizeof(JItemValue));
+  if(strlen(key) == 0) {
+    return val; //short-circuit
+  }
+
+  if(key[0] == '[') {
+
+  } else if(key[0] == '*') {
+    return query(obj, &key[0], type);
+  }
+  return val;
 }
