@@ -71,7 +71,7 @@ int main(int count, const char**argv) {
       //pretty print the whole file
       fileArgNum = 2;
       wholeFilePrint = 1;
-      useStandardIn = 0;
+      useStandardIn = count <= fileArgNum ? 1 : 0;
     }else if(argv[1][1] == 'e') {
       //find by argument
       fileArgNum = 2;
@@ -151,7 +151,7 @@ int main(int count, const char**argv) {
 	    jsonPrintObject(stdout, item.object_val);
 	  }else if(extractType == VAL_BOOL_ARRAY || extractType == VAL_DOUBLE_ARRAY || extractType == VAL_FLOAT_ARRAY ||
 	      extractType == VAL_INT_ARRAY || extractType == VAL_MIXED_ARRAY || extractType == VAL_STRING_ARRAY) {
-	    jsonPrintEntry(stdout, extractType, &item, 3, 0);
+	    jsonPrintEntryInc(stdout, extractType, &item, 3, 0);
 	  }else{
 	    fprintf(stderr, "Error: Could not find key '%s'\n", key);
 	  }

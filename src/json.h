@@ -20,6 +20,7 @@
 #define VAL_MIXED_ARRAY   14 /* JValue array */
 #define VAL_NULL          15
 
+/** Structures */
 typedef union Value {
   void*           ptr_val;
   float           float_val;
@@ -31,26 +32,28 @@ typedef union Value {
   struct JObject* object_val;
 } JItemValue;
 
+typedef struct Item {
+  unsigned char type :4;
+  JItemValue    value;
+} JArrayItem;
+
+typedef union Items {
+  void*        items;
+  JArrayItem** vItems;
+} JArrayItems;
+
 typedef struct JArray {
   unsigned int  count;
-  unsigned char type : 4;
-  union Items {
-    void*        items;
-    struct Item {
-      unsigned char type: 4;
-      JItemValue value;
-    } *vItems;
-  } _internal;
+  unsigned char type :4;
+  JArrayItems _internal;
 } JArray;
-typedef union Items JArrayItems;
-typedef struct Item  JArrayItem;
 
 typedef struct JEntry {
-  char*            name;
-  JItemValue       value;
-  int              hash;
-  unsigned short   probes;
-  unsigned char    value_type: 4;
+  char*          name;
+  JItemValue     value;
+  int            hash;
+  unsigned short probes;
+  unsigned char  value_type :4;
 } JEntry;
 
 typedef struct JObject {
@@ -59,50 +62,71 @@ typedef struct JObject {
   unsigned int   _incrementSize;
   unsigned int   _arraySize;
   unsigned short _maxProbes;
-  unsigned char value_type : 4;
+  unsigned char  value_type :4;
 } JObject;
-
 
 extern JObject *stringCache;
 
-// Building functions
-JObject* jsonAddVal(JObject *obj, const char *name, JItemValue value, short type);
-/* Convenience methods */
+/**
+ * Building functions
+ */
+JObject* jsonAddVal(JObject *obj, const char *name, JItemValue value,
+    short type);
+
+/** Manipulation methods */
 JObject* jsonAddObj(JObject *obj, const char *name, JObject *value);
 JObject* jsonAddInt(JObject *obj, const char *name, const int value);
 JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value);
 JObject* jsonAddString(JObject *obj, const char *name, const char *value);
 JObject* jsonDeleteKey(JObject *obj, const char *key);
 
+/** Array manipulation methods */
+JArray* jsonAddArrayItem(JArray *arr, JArrayItem *item);
+JArray* jsonAddArrayItemObject(JArray *arr, JObject *obj);
+
+
 #define NO_DUP 0
 #define DUP 1
 
-JItemValue    jsonParse(const char *filename, short *type);
-JItemValue    jsonParseF(FILE *file, short *type);
-const char*   jsonParserError();
-void          jsonPrintError();
-JObject*      jsonNewObject();
-JEntry*       jsonNewArray();
-JItemValue    jsonGet(const JObject *obj, const char *keys, short *type);
-int           jsonInt(const JObject *obj, const char* keys);
-unsigned int  jsonUInt(const JObject *obj, const char* keys);
-float         jsonFloat(const JObject *obj, const char* keys);
-double        jsonDouble(const JObject *obj, const char* keys);
-char *        jsonString(const JObject *obj, const char* keys);
-char          jsonBool(const JObject *obj, const char* keys);
-void**        jsonArray(const JObject *obj, const char* keys);
-char*         jsonBoolArray(const JObject *obj, const char* keys);
-int**         jsonIntArray(const JObject *obj, const char* keys);
-float**       jsonFoatArray(const JObject *obj, const char* keys);
-double**      jsonDoubleArray(const JObject *obj, const char* keys);
-char**        jsonStringArray(const JObject *obj, const char* keys);
-JObject*      jsonObject(const JObject *obj, const char* keys);
+JItemValue jsonParse(const char *filename, short *type);
+JItemValue jsonParseF(FILE *file, short *type);
 
-void          jsonPrintObject(const FILE *io, const JObject *obj);
+/** Error methods */
+const char* jsonParserError();
+void        jsonPrintError();
 
-void          jsonFree(JItemValue val, const short vtype);
+/** Creation methods */
+JObject* jsonNewObject();
+JArray*  jsonNewArray();
+
+/** Query & Extraction methods */
+JItemValue   jsonGet(const JObject *obj, const char *keys, short *type);
+int          jsonInt(const JObject *obj, const char *keys);
+unsigned int jsonUInt(const JObject *obj, const char *keys);
+float        jsonFloat(const JObject *obj, const char *keys);
+double       jsonDouble(const JObject *obj, const char *keys);
+char*        jsonString(const JObject *obj, const char *keys);
+char         jsonBool(const JObject *obj, const char *keys);
+JArray*      jsonArray(const JObject *obj, const char *keys);
+char*        jsonBoolArray(const JObject *obj, const char *keys);
+int**        jsonIntArray(const JObject *obj, const char *keys);
+float**      jsonFoatArray(const JObject *obj, const char *keys);
+double**     jsonDoubleArray(const JObject *obj, const char *keys);
+char**       jsonStringArray(const JObject *obj, const char *keys);
+JObject*     jsonObject(const JObject *obj, const char *keys);
+const char** jsonKeys(const JObject *obj, unsigned *size);
+
+JArrayItem** jsonArrayItemList(JArray *array);
+JObject**    jsonArrayKeyFilter(JArray* array, const char* key, unsigned *size);
+
+void jsonPrintObject(const FILE *io, const JObject *obj);
+void jsonPrintEntryInc(const FILE *io, unsigned char type, JItemValue *value, unsigned int tabs, unsigned int tabInc);
+void jsonPrintEntry(const FILE *io, const unsigned short type, const JItemValue *value);
+
+/** Memory methods */
+void jsonFree(JItemValue val, const short vtype);
 
 // miscellaneous
-char *getOrCacheString(const char* value);
+char* getOrCacheString(const char *value);
 
 #endif

@@ -10,6 +10,7 @@
 JObject *stringCache = NULL;
 
 int jsonGetEntryIndex(const JObject *obj, const char* keys);
+void jsonPrintObjectTabs(const FILE *io, const JObject* obj, unsigned int tabs, unsigned int tabInc);
 
 char *nextKey(const char *keys, int *last) {
   if (!keys || !last) {
@@ -112,13 +113,13 @@ JObject *jsonAddVal(JObject *obj, const char *name, JItemValue value, short type
   }
 
   if(type == 0) {
-    printf(stderr, "WARNING: Adding entry with invalid type to object for key %s\n", name);
+    fprintf(stderr, "WARNING: Adding entry with invalid type to object for key %s\n", name);
   }
 
   if(stringCache == NULL && stringCache != obj) {
     stringCache = jsonNewObject();
     if(atexit(signalHandler) != 0) {
-      printf(stderr, "WARNING: Could not register cleanup function!");
+      fprintf(stderr, "WARNING: Could not register cleanup function!");
     }
   }
   char *cached = NULL;
@@ -182,6 +183,10 @@ JObject* jsonAddUInt(JObject *obj, const char *name, const unsigned int value) {
 
 JObject *jsonAddString(JObject *obj, const char *name, const char *value) {
   return jsonAddVal(obj, name, (JItemValue) { value }, VAL_STRING);
+}
+
+JObject *jsonAddBool(JObject *obj, const char *name, const char value) {
+  return jsonAddVal(obj, name, (JItemValue) { value }, VAL_BOOL);
 }
 
 JItemValue _jsonGetObjVal(const JObject *obj, const char* keys, short *type) {
@@ -309,7 +314,7 @@ char *getOrCacheString(const char* value) {
   if(stringCache == NULL) {
     stringCache = jsonNewObject();
     if(atexit(signalHandler) != 0) {
-      printf(&stderr, "WARNING: Could not register cleanup function!");
+      fprintf(stderr, "WARNING: Could not register cleanup function!");
     }
   }
   short type;
@@ -328,13 +333,6 @@ char *getOrCacheString(const char* value) {
   return strdup(value);
 }
 
-//char* jsonStringValue(const char *value, short dup) {
-//  if(dup) {
-//    return getOrCacheString(value);
-//  }
-//  return value;
-//}
-
 JObject *jsonNewObject() {
   JObject *obj = malloc(sizeof(JObject));
   obj->_incrementSize = DEFAULT_INC_AMOUNT;
@@ -344,6 +342,38 @@ JObject *jsonNewObject() {
   obj->entries = malloc(sizeof(JEntry*) * obj->_arraySize);
   memset(obj->entries, 0, sizeof(JEntry*) * obj->_arraySize);
   return obj;
+}
+
+JArray* jsonNewArray() {
+  JArray *arr = malloc(sizeof(JArray));
+  arr->type = VAL_MIXED_ARRAY;
+  arr->count = 0;
+  arr->_internal.vItems = NULL;
+  return arr;
+}
+
+JArray* jsonAddArrayItem(JArray *arr, JArrayItem *item) {
+  JArrayItem **items = malloc(sizeof(JArrayItem*)*(arr->count+1));
+  JArrayItem **fromArray = arr->_internal.vItems;
+  unsigned i = 0;
+  for(; i < arr->count; ++i) {
+    items[i] = fromArray[i];
+  }
+  items[i] = item;
+  if(arr->_internal.vItems) {
+    free(arr->_internal.vItems);
+  }
+  arr->_internal.vItems = items;
+  ++arr->count;
+  return arr;
+}
+
+JArray* jsonAddArrayItemObject(JArray *arr, JObject *obj) {
+  JArrayItem *item = malloc(sizeof(JArrayItem));
+  item->type = VAL_OBJ;
+  item->value = (JItemValue) { obj };
+  jsonAddArrayItem(arr, item);
+  return arr;
 }
 
 int jsonInt(const JObject *obj, const char* keys) {
@@ -451,7 +481,13 @@ char* jsonBoolArray(const JObject *obj, const char* keys) {
   return NULL;
 }
 
-void** jsonArray(const JObject* obj, const char* keys) {
+JArray* jsonArray(const JObject* obj, const char* keys) {
+  short type;
+  JItemValue value = jsonGet(obj, keys, &type);
+  char isArray = (type == VAL_MIXED_ARRAY || type == VAL_OBJ_ARRAY || type == VAL_INT_ARRAY || type == VAL_DOUBLE_ARRAY || type == VAL_FLOAT_ARRAY || type == VAL_BOOL_ARRAY);
+  if(isArray) {
+    return value.array_val;
+  }
   return NULL;
 }
 
@@ -469,6 +505,59 @@ double** jsonDoubleArray(const JObject* obj, const char* keys) {
 
 char** jsonStringArray(const JObject* obj, const char* keys) {
   return NULL;
+}
+
+const char** jsonKeys(const JObject *obj, unsigned *size) {
+  const char** keys = malloc(sizeof(const char*)*obj->size);
+  size = obj->size;
+  unsigned left = obj->size;
+  for(unsigned e = 0; e < obj->_arraySize; ++e) {
+    keys[left--] = obj->entries[e]->name;
+  }
+
+  return keys;
+}
+
+JArrayItem **jsonArrayItemList(JArray *array) {
+  return array->_internal.vItems;
+}
+
+JObject **jsonArrayKeyFilter(JArray* array, const char *key, unsigned *size) {
+  JArrayItem **items = jsonArrayItemList(array);
+  JObject** toRet = NULL;
+  JObject* found[256];
+  memset(&found, 0, sizeof(JObject*)*256);
+  int count = 0;
+  unsigned totalFound = 0;
+  for (int i = 0; i < array->count; ++i) {
+    JArrayItem *item = items[i];
+    if (item->type == VAL_OBJ) {
+      JObject *toEval = item->value.object_val;
+      if(jsonObject(toEval, key)) {
+        found[count] = toEval;
+        ++count;
+        if(count >= 256) {
+          if(!toRet) {
+            free(toRet);
+          }
+          toRet = (JObject**)malloc(sizeof(JObject*)*count);
+          memcpy(toRet, &found, sizeof(JObject*));
+          memset(&found, 0, sizeof(JObject*)*count);
+          totalFound += count;
+          count = 0;
+        }
+      }
+    }
+  }
+  if(!toRet) {
+    free(toRet);
+  }
+  toRet = (JObject**)malloc(sizeof(JObject*)*count);
+  memcpy(toRet, &found, sizeof(JObject*));
+  memset(&found, 0, sizeof(JObject*)*count);
+  totalFound += count;
+  *size = count;
+  return toRet;
 }
 
 JObject* jsonObject(const JObject* obj, const char* keys) {
@@ -506,7 +595,7 @@ JObject* jsonObject(const JObject* obj, const char* keys) {
   return found;
 }
 
-void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsigned int tabs, unsigned int tabInc) {
+void jsonPrintEntryInc(const FILE *io, unsigned char type, JItemValue* value, unsigned int tabs, unsigned int tabInc) {
   if (type == VAL_INT) {
     fprintf(io, "%d", value->int_val);
   } else if (type == VAL_FLOAT) {
@@ -526,7 +615,7 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     JItemValue *bools = value->array_val->_internal.items;
     for(int i = 0; i < value->array_val->count; ++i) {
       JItemValue *boolVal = &bools[i];
-      jsonPrintEntry(io, VAL_BOOL, boolVal, tabs, tabInc);
+      jsonPrintEntryInc(io, VAL_BOOL, boolVal, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }
@@ -537,7 +626,7 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     JItemValue *ints = value->array_val->_internal.items;
     for(int i = 0; i < value->array_val->count; ++i) {
       JItemValue *intVal = &ints[i];
-      jsonPrintEntry(io, VAL_INT, intVal, tabs, tabInc);
+      jsonPrintEntryInc(io, VAL_INT, intVal, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }
@@ -548,7 +637,7 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     JItemValue *floats = value->array_val->_internal.items;
     for(int i = 0; i < value->array_val->count; ++i) {
       JItemValue *floatVal = &floats[i];
-      jsonPrintEntry(io, VAL_FLOAT, floatVal, tabs, tabInc);
+      jsonPrintEntryInc(io, VAL_FLOAT, floatVal, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }
@@ -559,7 +648,7 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     JItemValue *doubles = value->array_val->_internal.items;
     for(int i = 0; i < value->array_val->count; ++i) {
       JItemValue *doubleVal = &doubles[i];
-      jsonPrintEntry(io, VAL_DOUBLE, doubleVal, tabs, tabInc);
+      jsonPrintEntryInc(io, VAL_DOUBLE, doubleVal, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }
@@ -567,10 +656,10 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
     fprintf(io, "]");
   } else if (type == VAL_MIXED_ARRAY) {
     fprintf(io, "[");
-    JArrayItem *values = value->array_val->_internal.vItems;
+    JArrayItem **values = value->array_val->_internal.vItems;
     for(int i = 0; i < value->array_val->count; ++i) {
-      JArrayItem *val = &values[i];
-      jsonPrintEntry(io, val->type, &val->value, tabs, tabInc);
+      JArrayItem *val = values[i];
+      jsonPrintEntryInc(io, val->type, &val->value, tabs, tabInc);
       if(i != value->array_val->count-1) {
         fprintf(io, ",");
       }
@@ -579,6 +668,10 @@ void jsonPrintEntry(const FILE *io, unsigned char type, JItemValue* value, unsig
   } else if (type == VAL_OBJ) {
     jsonPrintObjectTabs(io, value->object_val, tabs, tabInc);
   }
+}
+
+void jsonPrintEntry(const FILE *io, const unsigned short type, const JItemValue *value) {
+  jsonPrintEntryInc(io, type, value, 0, 2);
 }
 
 void jsonPrintObjectTabs(const FILE *io, const JObject* obj, unsigned int tabs, unsigned int tabInc) {
@@ -602,7 +695,7 @@ void jsonPrintObjectTabs(const FILE *io, const JObject* obj, unsigned int tabs, 
         comma = ""; //last element
       }
       fprintf(io, "%s\"%s\": ", strTabs, entry->name);
-      jsonPrintEntry(io, entry->value_type, &entry->value, tabs, tabInc);
+      jsonPrintEntryInc(io, entry->value_type, &entry->value, tabs, tabInc);
       fprintf(io, "%s\n", comma);
     }
   }
@@ -638,11 +731,12 @@ void jsonFree(JItemValue val, const short vtype) {
     }
     free(obj->entries);
   } else if (vtype == VAL_MIXED_ARRAY || vtype == VAL_OBJ_ARRAY) {
-    JArray *arr = val.array_val;
+    struct JArray *arr = val.array_val;
     int count = arr->count;
      for (int i = 0; i < count; ++i) {
-      JArrayItem *item = &arr->_internal.vItems[i];
-      jsonFree(item->value, item->type);
+      JArrayItem *items = arr->_internal.vItems[i];
+
+      jsonFree(items->value, items->type);
     }
   } else if (vtype == VAL_INT_ARRAY || vtype == VAL_FLOAT_ARRAY
       || vtype == VAL_BOOL_ARRAY || vtype == VAL_DOUBLE_ARRAY) {
