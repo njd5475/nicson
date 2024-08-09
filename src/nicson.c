@@ -127,12 +127,14 @@ int main(int count, const char* argv[]) {
 	  val = jsonParseF(stdin, &type);
 	} else {
 	  printf("Loading JSON: %s\n", file);
-	  val= jsonParse(file, &type);
+	  val = jsonParse(file, &type);
 	}
 
 #ifdef DEBUG
 	if(stringCache) {
-	  printf("Strings cached used %d\n", stringCache->size);
+	  printf("DEBUG: Strings cached used %d\n", stringCache->size);
+	}else{
+	  printf("DEBUG: String cache is null\n");
 	}
 #endif
 

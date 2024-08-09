@@ -1,5 +1,6 @@
 #include "json.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,6 +117,13 @@ JObject *jsonAddVal(JObject *obj, const char *name, JItemValue value, short type
     fprintf(stderr, "WARNING: Adding entry with invalid type to object for key %s\n", name);
   }
 
+  if(name == 0) {
+	fprintf(stderr, "Error: Name was null cannot add value to object\n");
+	fflush(stderr);
+	jsonPrintObject(stderr, obj);
+	return 0;
+  }
+
   if(stringCache == NULL && stringCache != obj) {
     stringCache = jsonNewObject();
     if(atexit(signalHandler) != 0) {
@@ -127,14 +135,29 @@ JObject *jsonAddVal(JObject *obj, const char *name, JItemValue value, short type
     cached = jsonString(stringCache, name);
     if(cached == NULL) {
       cached = strdup(name);
+      if(!cached) {
+    	  fprintf(stderr, "Error: Could not allocate memory for string\n");
+    	  return 0;
+      }
       jsonAddString(stringCache, cached, cached);
     }
   }
   JEntry *entry = malloc(sizeof(JEntry));
+  if(!entry) {
+	printf(stderr, "Error: Could not allocate memory for object\n");
+	jsonPrintObject(stderr, obj);
+	return 0;
+  }
+
   if(cached) {
     entry->name = cached;
   }else{
-    entry->name = strdup(name);
+	const char* nameDup = strdup(name);
+	if(!nameDup || errno) {
+	  fprintf(stderr, "Error: Could not allocate memory for string %s\n", strerror(errno));
+	  return 0;
+	}
+	entry->name = nameDup;
   }
   entry->value_type = type;
   entry->value = value;
@@ -323,6 +346,11 @@ char *getOrCacheString(const char* value) {
     cached = _jsonGetObjVal(stringCache, value, &type).string_val;
     if(cached == NULL) {
       const char* duped = strdup(value);
+      if(!duped || errno) {
+    	  fprintf(stderr, "ERROR: Caches String copy failed for %s\n", value);
+    	  fprintf(stderr, "ERROR: %s", strerror(errno));
+    	  return 0;
+      }
       cached = duped;
       jsonAddVal(stringCache, cached, (JItemValue) { cached }, VAL_STRING);
       return cached;

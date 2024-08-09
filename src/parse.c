@@ -713,6 +713,10 @@ void consume(Parser *p) {
 
 JItemValue jsonParse(const char *filename, short *type) {
   FILE *file = fopen(filename, "r");
+  if(!file) {
+	  fprintf(stderr, "Could not open file %s\n", filename);
+	  return (JItemValue) { 0 };
+  }
   return jsonParseF(file, type);
 }
 
