@@ -52,10 +52,28 @@ typedef struct KeySearch {
 
 JItemValue query(JObject *obj, const char *key, int *type);
 
-int main(int count, const char**argv) {
-	if(count < 1) {
-		puts("Error: missing filename argument!");
-		return EXIT_FAILURE;
+void printUsage(const char *execName) {
+	printf("Usage: %s <options> <filename> <key>\n", execName);
+	printf("Manipulate/Search JSON files\n");
+	printf("\nArguments:\n");
+	printf("\t -p         pretty prints the input json filename contents.\n");
+	printf("\t -e <value> find a value by the argument.\n");
+	printf("\t -h         print this help message.\n");	
+	printf("\n");
+	printf("To report errors or request features please do so on ");
+	printf("github.com at https://github.com/njd5475/nicson\n");
+	printf("\n");
+	printf("Examples:\n");
+	printf("\tnicson -p example.json\n");
+	printf("\tnicson -e example.json key\n");
+	printf("\tnicson -e example.json key.key.key\n");
+}
+
+int main(int count, const char* argv[]) {
+	printf("Nicson json parser cli tool %d\n", count);
+	if(count < 2) {
+		printUsage(argv[0]);
+		return 0;
 	}
 	short fileArgNum = 1;
 	short keyArgNum = 0;
@@ -90,26 +108,25 @@ int main(int count, const char**argv) {
       printHelpAndExit = 1;
     }
   }else{
-    fprintf(stderr, "Error: Options must come first\n");
+    fprintf(stderr, "Error: Missing Options which must come first\n\n");
+	printUsage(argv[0]);
     exit(0);
   }
 
 	if(printHelpAndExit) {
-	  printf("Usage: nicson [options] [file] [key]\n");
-	  printf("Manipulate/Search JSON files\n\n");
-	  printf("\t-p\t Pretty print either the JSON file or standard-in.\n");
-	  printf("\t-e\t Search and find by key a value in the JSON file\n");
+	  printUsage(argv[0]);
 	  return 0;
 	}
 
 	const char* file = argv[fileArgNum];
-	printf("Loading JSON: %s\n", file);
 	short type;
 
 	JItemValue val;
 	if(useStandardIn) {
+	  printf("Reading from standard-input\n");
 	  val = jsonParseF(stdin, &type);
 	} else {
+	  printf("Loading JSON: %s\n", file);
 	  val= jsonParse(file, &type);
 	}
 
